@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-medical-primary: #0ea5e9;
+  --color-medical-secondary: #f0f9ff;
+  --color-medical-dark: #0c4a6e;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #1e293b;
+}

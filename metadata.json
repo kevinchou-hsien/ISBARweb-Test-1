@@ -1,0 +1,5 @@
+{
+  "name": "ISBAR 護生實習交班挑戰",
+  "description": "一個專為護理系學生設計的互動式交班練習遊戲，模擬醫院 HIS 系統介面，透過 ISBAR 流程練習提升臨床交班能力並減輕實習壓力。",
+  "requestFramePermissions": []
+}
