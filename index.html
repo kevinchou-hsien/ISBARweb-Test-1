@@ -1,13 +1,820 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISBAR 臨床交班模擬訓練系統</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        medical: {
+                            primary: '#0ea5e9',
+                            dark: '#0369a1',
+                            light: '#e0f2fe',
+                            accent: '#f43f5e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Framer Motion CDN (UMD) -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    
+    <!-- Lucide Icons CDN (UMD) -->
+    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .medical-gradient {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+        }
+
+        .isbar-i { border-left: 4px solid #64748b; }
+        .isbar-s { border-left: 4px solid #ef4444; }
+        .isbar-b { border-left: 4px solid #f59e0b; }
+        .isbar-a { border-left: 4px solid #3b82f6; }
+        .isbar-r { border-left: 4px solid #10b981; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .markdown-body ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Access globals from CDN
+        const { useState, useEffect, useMemo, useCallback } = React;
+        
+        // Robust detection for Framer Motion
+        // We use a proxy to ensure motion.tag always returns a valid component or string
+        const motion = new Proxy({}, {
+            get: (target, tag) => {
+                const m = window.Motion || window.framerMotion;
+                const motionLib = m ? (m.motion || m) : null;
+                if (motionLib && motionLib[tag]) return motionLib[tag];
+                return tag; // Fallback to string tag name
+            }
+        });
+
+        const AnimatePresence = (window.Motion || window.framerMotion)?.AnimatePresence || (({ children }) => <>{children}</>);
+        
+        // Helper to get icons safely from LucideReact global
+        const Icon = ({ name, ...props }) => {
+            const lucide = window.LucideReact || window.lucide || {};
+            let IconComponent = lucide[name];
+            
+            if (!IconComponent) {
+                const foundKey = Object.keys(lucide).find(k => k.toLowerCase() === name.toLowerCase());
+                IconComponent = foundKey ? lucide[foundKey] : null;
+            }
+            
+            // If it's not a valid component, return a placeholder
+            if (!IconComponent || (typeof IconComponent !== 'function' && (typeof IconComponent !== 'object' || !IconComponent.$$typeof))) {
+                return <span className="inline-block w-4 h-4 bg-slate-200 rounded-sm" title={`Missing icon: ${name}`} />;
+            }
+            
+            return <IconComponent {...props} />;
+        };
+
+        // --- Constants ---
+        const SCENARIOS = [
+            {
+                id: '1',
+                title: '外科術後呼吸困難',
+                patientName: '王大明',
+                bedNumber: '502-1',
+                age: 65,
+                gender: '男',
+                difficulty: 'Level 1',
+                ward: '5A 病房',
+                timeLimit: 0,
+                chiefComplaint: '術後呼吸困難',
+                fullStory: `王大明先生，65歲，昨天剛完成右膝人工關節置換術。目前在 5A 病房。\n今天早上巡房時，病人突然抱怨胸口悶痛且呼吸非常費力。\n生命徵象顯示：呼吸每分鐘 28 次，心跳 110 次，血氧飽和度 (SpO2) 下降至 88%。\n過去病史有高血壓與長期抽菸。聽診發現雙肺下葉有細濕囉音。\n身為實習護生，你需要立即向學姊或醫師交班。`,
+                keywords: [
+                    { id: 'k1', text: '我是 5A 病房護生小明', category: 'I', description: '自我介紹與單位' },
+                    { id: 'k2', text: '502-1 床王大明先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'k3', text: '目前感到呼吸困難且胸口悶痛', category: 'S', description: '目前發生的主要問題' },
+                    { id: 'k4', text: '昨天剛完成右膝人工關節置換術', category: 'B', description: '相關手術史' },
+                    { id: 'k5', text: '過去有高血壓病史', category: 'B', description: '過去病史' },
+                    { id: 'k6', text: '呼吸每分鐘 28 次', category: 'A', description: '異常生命徵象' },
+                    { id: 'k7', text: '血氧飽和度 (SpO2) 下降至 88%', category: 'A', description: '異常檢查數值' },
+                    { id: 'k8', text: '聽診有囉音', category: 'A', description: '身體評估發現' },
+                    { id: 'k9', text: '建議立即請住院醫師過來評估', category: 'R', description: '具體建議行動', priority: 1 },
+                    { id: 'k10', text: '先給予氧氣治療', category: 'R', description: '初步處理措施', priority: 2 },
+                ]
+            },
+            {
+                id: '1-2',
+                title: '術後傷口疼痛管理',
+                patientName: '陳阿姨',
+                bedNumber: '505-2',
+                age: 58,
+                gender: '女',
+                difficulty: 'Level 1',
+                ward: '5A 病房',
+                timeLimit: 0,
+                chiefComplaint: '腹部術後劇烈疼痛',
+                fullStory: `陳阿姨，58歲，今天早上剛完成腹腔鏡膽囊切除術。\n目前回到病房 4 小時，主訴傷口劇烈疼痛，疼痛評分 (NRS) 達 8 分。\n病人顯得焦躁不安，出冷汗，血壓稍高 145/92 mmHg。\n醫囑有開立止痛藥 (Keto) 必要時使用。`,
+                keywords: [
+                    { id: 'k1-2-1', text: '我是 5A 病房護生小明', category: 'I', description: '自我介紹' },
+                    { id: 'k1-2-2', text: '505-2 床陳阿姨', category: 'S', description: '病人資訊' },
+                    { id: 'k1-2-3', text: '術後傷口劇烈疼痛，NRS 8 分', category: 'S', description: '目前問題' },
+                    { id: 'k1-2-4', text: '早上剛完成腹腔鏡膽囊切除術', category: 'B', description: '手術背景' },
+                    { id: 'k1-2-5', text: '血壓 145/92 mmHg，顯得焦躁', category: 'A', description: '評估發現' },
+                    { id: 'k1-2-6', text: '建議依醫囑給予止痛藥物', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'k1-2-7', text: '協助病人採舒適臥位', category: 'R', description: '護理措施', priority: 2 },
+                ]
+            },
+            {
+                id: '2',
+                title: '內科心衰竭惡化',
+                patientName: '李美玲',
+                bedNumber: '508-2',
+                age: 42,
+                gender: '女',
+                difficulty: 'Level 2',
+                ward: '5A 病房',
+                timeLimit: 180,
+                chiefComplaint: '心衰竭合併下肢水腫',
+                fullStory: `李美玲女士，42歲，因心衰竭急性惡化入院。\n目前主訴呼吸喘，無法平躺，下肢有明顯凹陷性水腫 (Pitting edema 2+)。\n生命徵象：血壓 150/90 mmHg，心跳 95 次，呼吸 24 次。\n目前留置有 CVP 管路，壓力測得 18 cmH2O。\n醫師開立了利尿劑 (Lasix) 醫囑，並要求記錄 I/O。`,
+                keywords: [
+                    { id: 'k11', text: '我是 5A 病房護生小玲', category: 'I', description: '自我介紹' },
+                    { id: 'k12', text: '508-2 床李美玲女士', category: 'S', description: '病人資訊' },
+                    { id: 'k13', text: '心衰竭急性惡化，呼吸喘且水腫', category: 'S', description: '當前狀況' },
+                    { id: 'k14', text: 'CVP 壓力 18 cmH2O', category: 'A', description: '管路監測' },
+                    { id: 'k15', text: '下肢 Pitting edema 2+', category: 'A', description: '身體評估' },
+                    { id: 'k16', text: '三年前曾有感冒紀錄', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k17', text: '病人信仰佛教', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k18', text: '給予利尿劑 Lasix', category: 'R', description: '治療計畫', priority: 2 },
+                    { id: 'k19', text: '嚴格記錄 I/O 與體重', category: 'R', description: '護理重點', priority: 1 },
+                    { id: 'k20', text: '採半坐臥位 (Semi-Fowler)', category: 'R', description: '護理處置', priority: 3 },
+                ]
+            },
+            {
+                id: '3',
+                title: '重症敗血性休克',
+                patientName: '張老先生',
+                bedNumber: 'SICU-05',
+                age: 72,
+                gender: '男',
+                difficulty: 'Level 3',
+                ward: 'SICU',
+                timeLimit: 120,
+                chiefComplaint: '敗血性休克併多重器官衰竭',
+                fullStory: `張老先生，72歲，因腹膜炎引發敗血性休克轉入 SICU。\n目前插管 (Endo) 使用呼吸器中，設定為 PC mode。\n今日早上血壓掉至 80/45 mmHg，MAP 56 mmHg。\n目前使用 Levophed 15 mcg/min 維持血壓。\nWBC 25,000/uL，Lactate 4.5 mmol/L。`,
+                keywords: [
+                    { id: 'k21', text: '我是 SICU 護生阿強', category: 'I', description: '自我介紹' },
+                    { id: 'k22', text: 'SICU-05 床張老先生', category: 'S', description: '病人資訊' },
+                    { id: 'k23', text: '敗血性休克，血壓掉至 80/45 mmHg', category: 'S', description: '主訴' },
+                    { id: 'k24', text: 'Endo, A-line, CVP 留置中', category: 'B', description: '管路背景' },
+                    { id: 'k25', text: 'MAP 56 mmHg, Lactate 4.5', category: 'A', description: '血流動力學' },
+                    { id: 'k26', text: '家屬詢問轉出時間', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k27', text: '十年前白內障手術', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k28', text: '調高 Levophed 劑量', category: 'R', description: '急迫處置', priority: 1 },
+                    { id: 'k29', text: '追蹤血液培養與抗生素使用', category: 'R', description: '治療計畫', priority: 2 },
+                    { id: 'k30', text: '準備輸液復甦 (Fluid resuscitation)', category: 'R', description: '護理重點', priority: 3 },
+                ]
+            }
+        ];
+
+        const CATEGORIES = [
+            { key: 'I', full: 'Introduction', label: '自我介紹', color: 'bg-slate-500', border: 'border-slate-200', text: 'text-slate-600', icon: <Icon name="User" className="w-4 h-4" /> },
+            { key: 'S', full: 'Situation', label: '目前狀況', color: 'bg-red-500', border: 'border-red-200', text: 'text-red-600', icon: <Icon name="AlertCircle" className="w-4 h-4" /> },
+            { key: 'B', full: 'Background', label: '病史背景', color: 'bg-amber-500', border: 'border-amber-200', text: 'text-amber-600', icon: <Icon name="Clock" className="w-4 h-4" /> },
+            { key: 'A', full: 'Assessment', label: '評估發現', color: 'bg-blue-500', border: 'border-blue-200', text: 'text-blue-600', icon: <Icon name="Activity" className="w-4 h-4" /> },
+            { key: 'R', full: 'Recommendation', label: '建議處置', color: 'bg-emerald-500', border: 'border-emerald-200', text: 'text-emerald-600', icon: <Icon name="CheckCircle2" className="w-4 h-4" /> },
+        ];
+
+        // --- Components ---
+
+        function KeywordItem({ keyword, isPlaced, isSelected, isSubmitted, onClick }) {
+            return (
+                <motion.div
+                    layout
+                    whileHover={!isPlaced && !isSubmitted ? { scale: 1.02 } : {}}
+                    whileTap={!isPlaced && !isSubmitted ? { scale: 0.98 } : {}}
+                    onClick={onClick}
+                    className={`px-3 py-2 rounded-lg text-sm transition-all border text-left flex items-center justify-between gap-2 cursor-pointer ${
+                        isPlaced 
+                            ? "bg-slate-100 text-slate-400 border-slate-200 opacity-50"
+                            : isSelected
+                                ? "bg-medical-primary text-white border-medical-primary shadow-md ring-2 ring-medical-primary ring-offset-2"
+                                : "bg-white text-slate-700 border-slate-300 hover:border-medical-primary hover:text-medical-primary"
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        {!isPlaced && !isSubmitted && <Icon name="GripVertical" className="w-3.5 h-3.5 text-slate-400" />}
+                        <span>{keyword.text}</span>
+                    </div>
+                    {isSubmitted && !isPlaced && !keyword.isNoise && (
+                        <span className="text-[10px] font-bold text-red-500 ml-2 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 whitespace-nowrap">
+                            應屬 {keyword.category}
+                        </span>
+                    )}
+                </motion.div>
+            );
+        }
+
+        function IsbarZone({ cat, isSubmitted, placedKeywords, selectedKeyword, onCategoryClick, onPlacedKeywordClick, showHints }) {
+            const isTarget = selectedKeyword !== null;
+            
+            return (
+                <div 
+                    onClick={() => onCategoryClick(cat.key)}
+                    className={`flex flex-col min-h-[120px] rounded-xl border-2 transition-all ${
+                        isTarget 
+                            ? "border-dashed border-medical-primary bg-medical-primary/5 scale-[1.01]" 
+                            : `border-transparent bg-slate-50/50`
+                    }`}
+                >
+                    <div className={`flex items-center justify-between px-4 py-2 rounded-t-lg border-b ${cat.border} ${cat.color} text-white`}>
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded bg-white/20 flex items-center justify-center font-black text-xs">
+                                {cat.key}
+                            </div>
+                            <span className="font-bold text-sm">
+                                {showHints ? cat.full : '????'}
+                            </span>
+                        </div>
+                        <span className="text-[10px] font-medium opacity-80 uppercase tracking-wider">
+                            {showHints ? cat.label : '分類隱藏'}
+                        </span>
+                    </div>
+
+                    <div className="p-3 space-y-2 flex-grow">
+                        {placedKeywords.length === 0 ? (
+                            <div className="h-full flex items-center justify-center py-6">
+                                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">
+                                    {isTarget ? "點擊此處放置" : "尚無內容"}
+                                </p>
+                            </div>
+                        ) : (
+                            placedKeywords.map((kw, idx) => (
+                                <motion.div
+                                    key={kw.id}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className={`p-2 rounded-lg text-xs border bg-white shadow-sm flex items-center justify-between group ${
+                                        isSubmitted 
+                                            ? kw.category === cat.key ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30"
+                                            : "border-slate-200"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {isSubmitted && (
+                                            kw.category === cat.key 
+                                                ? <Icon name="CheckCircle2" className="w-3 h-3 text-green-500" />
+                                                : <Icon name="AlertCircle" className="w-3 h-3 text-red-500" />
+                                        )}
+                                        <span className="text-slate-700">{kw.text}</span>
+                                    </div>
+                                    {!isSubmitted && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onPlacedKeywordClick(cat.key, kw); }}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-400 transition-all"
+                                        >
+                                            <Icon name="X" className="w-3 h-3" />
+                                        </button>
+                                    )}
+                                </motion.div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Main App Component ---
+
+        function App() {
+            const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
+            const currentScenario = SCENARIOS[currentScenarioIndex];
+            
+            const [shuffledKeywords, setShuffledKeywords] = useState([]);
+            const [selectedKeyword, setSelectedKeyword] = useState(null);
+            const [placedKeywords, setPlacedKeywords] = useState({
+                I: [], S: [], B: [], A: [], R: [],
+            });
+            const [isSubmitted, setIsSubmitted] = useState(false);
+            const [score, setScore] = useState(0);
+            const [showResult, setShowResult] = useState(false);
+            const [playerName, setPlayerName] = useState('');
+            const [showNameModal, setShowNameModal] = useState(true);
+            const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [showScript, setShowScript] = useState(false);
+            const [timeLeft, setTimeLeft] = useState(null);
+            const [npcFeedback, setNpcFeedback] = useState([]);
+            const [showHints, setShowHints] = useState(true);
+            const [showIntroModal, setShowIntroModal] = useState(false);
+
+            // Timer logic
+            useEffect(() => {
+                if (currentScenario.timeLimit && currentScenario.timeLimit > 0 && !isSubmitted && !showNameModal) {
+                    setTimeLeft(currentScenario.timeLimit);
+                } else {
+                    setTimeLeft(null);
+                }
+            }, [currentScenarioIndex, showNameModal]);
+
+            useEffect(() => {
+                if (timeLeft === null || isSubmitted || showNameModal) return;
+                if (timeLeft <= 0) {
+                    handleSubmit();
+                    return;
+                }
+                const timer = setInterval(() => {
+                    setTimeLeft(prev => (prev !== null ? prev - 1 : null));
+                }, 1000);
+                return () => clearInterval(timer);
+            }, [timeLeft, isSubmitted, showNameModal]);
+
+            // Shuffle keywords
+            useEffect(() => {
+                const keywords = currentScenario.keywords.map(k => {
+                    let updatedText = k.text;
+                    if (playerName) {
+                        updatedText = updatedText.replace(/護生(小明|小玲|阿強)/g, `護生${playerName}`);
+                        updatedText = updatedText.replace(/我是(.*)護生(小明|小玲|阿強)/g, `我是$1護生${playerName}`);
+                    }
+                    return { ...k, text: updatedText };
+                });
+                for (let i = keywords.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [keywords[i], keywords[j]] = [keywords[j], keywords[i]];
+                }
+                setShuffledKeywords(keywords);
+            }, [currentScenarioIndex, playerName]);
+
+            const handleKeywordClick = (keyword) => {
+                if (isSubmitted) return;
+                if (isKeywordPlaced(keyword.id)) return;
+                setSelectedKeyword(keyword === selectedKeyword ? null : keyword);
+            };
+
+            const handleCategoryClick = (category) => {
+                if (!selectedKeyword || isSubmitted) return;
+                
+                setPlacedKeywords(prev => ({
+                    ...prev,
+                    [category]: [...prev[category], selectedKeyword]
+                }));
+                setSelectedKeyword(null);
+            };
+
+            const handlePlacedKeywordClick = (category, keyword) => {
+                if (isSubmitted) return;
+                setPlacedKeywords(prev => ({
+                    ...prev,
+                    [category]: prev[category].filter(k => k.id !== keyword.id)
+                }));
+            };
+
+            const isKeywordPlaced = (id) => {
+                return Object.values(placedKeywords).some(list => list.some(k => k.id === id));
+            };
+
+            const handleSubmit = () => {
+                let totalScore = 0;
+                const feedback = [];
+                
+                const placedAll = Object.values(placedKeywords).flat();
+                const noisePlaced = placedAll.filter(k => k.isNoise);
+                
+                if (noisePlaced.length > 0) {
+                    feedback.push(`${playerName || '同學'}，交班內容包含了「${noisePlaced[0].text}」等非必要資訊，這會干擾溝通效率。`);
+                }
+
+                Object.entries(placedKeywords).forEach(([cat, keywords]) => {
+                    keywords.forEach(k => {
+                        if (k.isNoise) {
+                            totalScore -= 10;
+                        } else if (k.category === cat) {
+                            totalScore += 10;
+                        }
+                    });
+                });
+
+                const rKeywords = placedKeywords['R'];
+                if (rKeywords.length > 1) {
+                    let priorityCorrect = true;
+                    for (let i = 0; i < rKeywords.length - 1; i++) {
+                        if ((rKeywords[i].priority || 99) > (rKeywords[i+1].priority || 99)) {
+                            priorityCorrect = false;
+                            break;
+                        }
+                    }
+                    if (priorityCorrect && rKeywords.length === currentScenario.keywords.filter(k => k.category === 'R').length) {
+                        totalScore += 10;
+                    } else if (!priorityCorrect) {
+                        feedback.push(`${playerName || '同學'}，建議 (Recommendation) 的順序很重要，應先處理最緊急的事。`);
+                    }
+                }
+
+                const allRequired = currentScenario.keywords.filter(k => !k.isNoise);
+                const placedIds = placedAll.map(k => k.id);
+                const missing = allRequired.filter(k => !placedIds.includes(k.id));
+                
+                if (missing.length > 0) {
+                    const missingCategories = [...new Set(missing.map(m => m.category))];
+                    feedback.push(`${playerName || '同學'}，你漏掉了 ${missing.length} 項關鍵資訊。這些內容屬於 ${missingCategories.join('/')} 範疇。`);
+                }
+
+                const maxPossible = (allRequired.length * 10) + (currentScenario.keywords.some(k => k.category === 'R') ? 10 : 0);
+                let finalScore = Math.round((totalScore / maxPossible) * 100);
+                finalScore = Math.max(0, Math.min(100, finalScore));
+                
+                setScore(finalScore);
+                setNpcFeedback(feedback);
+                setIsSubmitted(true);
+                setShowResult(true);
+            };
+
+            const resetGame = () => {
+                setPlacedKeywords({ I: [], S: [], B: [], A: [], R: [] });
+                setScore(0);
+                setShowResult(false);
+                setSelectedKeyword(null);
+                setIsSubmitted(false);
+                setNpcFeedback([]);
+                if (currentScenario.timeLimit) setTimeLeft(currentScenario.timeLimit);
+            };
+
+            const handleDifficultySelect = (difficulty) => {
+                const filtered = SCENARIOS.filter(s => s.difficulty === difficulty);
+                const randomIndex = Math.floor(Math.random() * filtered.length);
+                const scenario = filtered[randomIndex];
+                const index = SCENARIOS.findIndex(s => s.id === scenario.id);
+                setCurrentScenarioIndex(index);
+                resetGame();
+                setShowDifficultyModal(false);
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header */}
+                    <header className="medical-gradient text-white px-6 py-4 shadow-lg flex items-center justify-between sticky top-0 z-[100]">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <Icon name="ClipboardList" className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight">ISBAR 臨床交班模擬訓練</h1>
+                                <div className="flex items-center gap-2 text-[10px] font-bold opacity-80 uppercase tracking-widest">
+                                    <Icon name="ShieldCheck" className="w-3 h-3" />
+                                    <span>病人安全與溝通品質提升計畫</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setShowHints(!showHints)}
+                                className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors border ${
+                                    showHints ? "bg-white text-medical-primary border-white" : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+                                }`}
+                                title={showHints ? "隱藏提示" : "顯示提示"}
+                            >
+                                {showHints ? <Icon name="Eye" className="w-5 h-5" /> : <Icon name="EyeOff" className="w-5 h-5" />}
+                            </button>
+                            <button 
+                                onClick={() => setShowIntroModal(true)}
+                                className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors"
+                            >
+                                <Icon name="Info" className="w-5 h-5" />
+                            </button>
+                            <div className="hidden md:flex items-center gap-6 text-sm border-l border-white/20 pl-6">
+                                {timeLeft !== null && (
+                                    <div className={`flex items-center gap-2 font-black ${timeLeft < 30 ? 'text-red-300 animate-pulse' : 'text-white'}`}>
+                                        <Icon name="Clock" className="w-4 h-4" />
+                                        <span>{formatTime(timeLeft)}</span>
+                                    </div>
+                                )}
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] opacity-60 uppercase font-bold">當前練習者</span>
+                                    <span className="font-bold">{playerName || '未登錄'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Left Column */}
+                        <div className="lg:col-span-5 space-y-8">
+                            {/* Patient Info Card */}
+                            <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                                    <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <Icon name="User" className="w-5 h-5 text-medical-primary" />
+                                        病人基本資料
+                                    </h2>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                        currentScenario.difficulty === 'Level 1' ? "bg-green-100 text-green-700" :
+                                        currentScenario.difficulty === 'Level 2' ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"
+                                    }`}>
+                                        {currentScenario.difficulty}
+                                    </span>
+                                </div>
+                                <div className="p-6 grid grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">姓名 / 床號</p>
+                                        <p className="text-lg font-black text-slate-900">{currentScenario.patientName} ({currentScenario.bedNumber})</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">年齡 / 性別</p>
+                                        <p className="text-lg font-black text-slate-900">{currentScenario.age}歲 / {currentScenario.gender}</p>
+                                    </div>
+                                    <div className="col-span-2 space-y-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">主訴 (Chief Complaint)</p>
+                                        <p className="text-sm font-bold text-medical-dark bg-medical-light/50 p-3 rounded-xl border border-medical-light">
+                                            {currentScenario.chiefComplaint}
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Scenario Story */}
+                            <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                                <h2 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                                    <Icon name="FileText" className="w-5 h-5 text-medical-primary" />
+                                    臨床情境描述
+                                </h2>
+                                <div className="prose prose-slate max-w-none">
+                                    <p className="text-slate-600 leading-relaxed text-sm whitespace-pre-wrap">
+                                        {currentScenario.fullStory}
+                                    </p>
+                                </div>
+                            </section>
+
+                            {/* Keywords Source */}
+                            <section className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="font-bold flex items-center gap-2">
+                                        <Icon name="Search" className="w-5 h-5 text-medical-primary" />
+                                        提取關鍵資訊
+                                    </h2>
+                                    <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">點擊或拖曳分類</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {shuffledKeywords.map(kw => (
+                                        <KeywordItem 
+                                            key={kw.id}
+                                            keyword={kw}
+                                            isPlaced={isKeywordPlaced(kw.id)}
+                                            isSelected={selectedKeyword?.id === kw.id}
+                                            isSubmitted={isSubmitted}
+                                            onClick={() => handleKeywordClick(kw)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Submit Area */}
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                                <button
+                                    disabled={isSubmitted}
+                                    onClick={handleSubmit}
+                                    className={`w-full py-4 rounded-xl font-black text-lg transition-all flex items-center justify-center gap-2 shadow-lg ${
+                                        !isSubmitted ? "bg-medical-primary hover:bg-medical-dark text-white shadow-medical-primary/20" : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    }`}
+                                >
+                                    {isSubmitted ? "交班已送出" : "確認送出交班"}
+                                    <Icon name="ChevronRight" className="w-6 h-6" />
+                                </button>
+                                {isSubmitted && (
+                                    <button
+                                        onClick={resetGame}
+                                        className="w-full py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Icon name="RefreshCcw" className="w-4 h-4" />
+                                        重新練習
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right Column: ISBAR Form */}
+                        <div className="lg:col-span-7">
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col">
+                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 font-bold text-slate-800">
+                                        <Icon name="ShieldCheck" className="w-5 h-5 text-medical-primary" />
+                                        <span>ISBAR 交班單填寫區</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        <Icon name="Clock" className="w-3 h-3" />
+                                        <span>{currentTime.toLocaleTimeString()}</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 space-y-6 flex-grow overflow-y-auto">
+                                    {CATEGORIES.map(cat => (
+                                        <IsbarZone 
+                                            key={cat.key}
+                                            cat={cat}
+                                            isSubmitted={isSubmitted}
+                                            placedKeywords={placedKeywords[cat.key]}
+                                            selectedKeyword={selectedKeyword}
+                                            onCategoryClick={handleCategoryClick}
+                                            onPlacedKeywordClick={handlePlacedKeywordClick}
+                                            showHints={showHints}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* Modals */}
+                    <AnimatePresence>
+                        {showIntroModal && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+                                <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                                    <div className="bg-medical-primary p-6 text-white flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Icon name="ClipboardList" className="w-6 h-6" />
+                                            <h2 className="text-xl font-bold">臨床交班 (ISBAR) 模擬訓練系統</h2>
+                                        </div>
+                                        <button onClick={() => setShowIntroModal(false)} className="p-2 hover:bg-white/20 rounded-full"><Icon name="X" className="w-6 h-6" /></button>
+                                    </div>
+                                    <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+                                        <section className="space-y-2">
+                                            <h3 className="font-bold text-slate-900">遊戲目標</h3>
+                                            <p className="text-sm text-slate-600">本系統旨在訓練護生正確使用 ISBAR 溝通框架，確保醫療資訊傳遞的完整性與精確性。</p>
+                                        </section>
+                                        <section className="space-y-2">
+                                            <h3 className="font-bold text-slate-900">計分標準</h3>
+                                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm space-y-2">
+                                                <div className="flex justify-between"><span>正確分類關鍵字</span><span className="font-bold text-green-600">+10 分</span></div>
+                                                <div className="flex justify-between"><span>包含非必要資訊 (雜訊)</span><span className="font-bold text-red-600">-10 分</span></div>
+                                                <div className="flex justify-between"><span>建議 (R) 順序正確獎勵</span><span className="font-bold text-blue-600">+10 分</span></div>
+                                            </div>
+                                        </section>
+                                    </div>
+                                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                        <button onClick={() => setShowIntroModal(false)} className="px-8 py-3 bg-medical-primary text-white rounded-xl font-bold">開始練習</button>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+
+                        {showNameModal && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[400] flex items-center justify-center p-4">
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 text-center">
+                                    <div className="w-20 h-20 bg-medical-light rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                        <Icon name="Stethoscope" className="w-10 h-10 text-medical-primary" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-slate-900 mb-2">歡迎進入模擬訓練</h2>
+                                    <p className="text-slate-500 mb-8 text-sm">請輸入您的姓名或代號以開始練習</p>
+                                    <input 
+                                        type="text" 
+                                        value={playerName} 
+                                        onChange={(e) => setPlayerName(e.target.value)}
+                                        placeholder="例如：王小明"
+                                        className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-6 focus:border-medical-primary focus:ring-4 focus:ring-medical-primary/10 outline-none transition-all text-center font-bold text-lg"
+                                    />
+                                    <button 
+                                        onClick={() => { if(playerName) { setShowNameModal(false); setShowDifficultyModal(true); } }}
+                                        disabled={!playerName}
+                                        className="w-full py-4 bg-medical-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-medical-primary/20 disabled:opacity-50"
+                                    >
+                                        進入系統
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+                        )}
+
+                        {showDifficultyModal && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[350] flex items-center justify-center p-4">
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-10">
+                                    <h2 className="text-2xl font-black text-slate-900 mb-8 text-center">選擇訓練難度</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {[
+                                            { level: 'Level 1', label: '初級訓練', desc: '基礎 ISBAR 分類', icon: <Icon name="ShieldCheck" className="w-6 h-6" />, color: 'green' },
+                                            { level: 'Level 2', label: '中級挑戰', desc: '包含干擾資訊與排序', icon: <Icon name="Activity" className="w-6 h-6" />, color: 'orange' },
+                                            { level: 'Level 3', label: '高級實戰', desc: '重症病況與高壓計時', icon: <Icon name="AlertTriangle" className="w-6 h-6" />, color: 'red' },
+                                        ].map(diff => (
+                                            <button key={diff.level} onClick={() => handleDifficultySelect(diff.level)} className="group p-6 rounded-2xl border-2 border-slate-100 hover:border-medical-primary hover:bg-medical-light/30 transition-all text-left flex flex-col items-center">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${diff.level === 'Level 1' ? 'bg-green-100 text-green-600' : diff.level === 'Level 2' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
+                                                    {diff.icon}
+                                                </div>
+                                                <h3 className="font-black text-slate-900">{diff.label}</h3>
+                                                <p className="text-xs text-slate-500 mt-2">{diff.desc}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+
+                        {showResult && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 overflow-y-auto">
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-10 text-center my-8">
+                                    {!showScript ? (
+                                        <>
+                                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                <Icon name="CheckCircle2" className="w-12 h-12 text-green-600" />
+                                            </div>
+                                            <h2 className="text-3xl font-black text-slate-900 mb-2">交班評核結果</h2>
+                                            <div className="bg-slate-50 rounded-2xl p-6 mb-8 grid grid-cols-2 gap-4">
+                                                <div><p className="text-[10px] font-bold text-slate-400 uppercase">最終積分</p><p className="text-4xl font-black text-medical-primary">{score}</p></div>
+                                                <div><p className="text-[10px] font-bold text-slate-400 uppercase">評級</p><p className={`text-xl font-black ${score >= 90 ? 'text-green-600' : score >= 70 ? 'text-blue-600' : 'text-orange-500'}`}>{score >= 90 ? "極佳" : score >= 70 ? "良好" : "待加強"}</p></div>
+                                            </div>
+                                            <div className="bg-medical-primary/5 border-l-4 border-medical-primary p-6 rounded-r-2xl text-left mb-8 space-y-2">
+                                                {npcFeedback.length > 0 ? (
+                                                    npcFeedback.map((fb, i) => (
+                                                        <p key={i} className="text-sm font-medium text-slate-700 italic flex gap-2">
+                                                            <span className="text-medical-primary">•</span>
+                                                            {fb}
+                                                        </p>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-sm font-medium text-slate-700 italic">表現不錯，繼續保持！</p>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button onClick={resetGame} className="py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg">再試一次</button>
+                                                <button onClick={() => { setShowResult(false); setShowDifficultyModal(true); resetGame(); }} className="py-4 bg-white border-2 border-medical-primary text-medical-primary rounded-2xl font-black">切換難度</button>
+                                            </div>
+                                            <button onClick={() => setShowScript(true)} className="w-full mt-4 py-4 bg-slate-100 text-slate-700 rounded-2xl font-black">查看標準交班稿</button>
+                                        </>
+                                    ) : (
+                                        <div className="text-left">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h2 className="text-2xl font-black">標準交班稿 (ISBAR)</h2>
+                                                <button onClick={() => setShowScript(false)} className="p-2 bg-slate-100 rounded-full"><Icon name="X" className="w-5 h-5" /></button>
+                                            </div>
+                                            <div className="space-y-6 max-h-[60vh] overflow-y-auto p-4 bg-slate-50 rounded-2xl">
+                                                {CATEGORIES.map(cat => (
+                                                    <div key={cat.key} className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${cat.color}`}>{cat.key}</span>
+                                                            <span className="font-bold text-sm text-slate-700">{cat.full}</span>
+                                                        </div>
+                                                        <div className="pl-8 text-sm text-slate-600 leading-relaxed">
+                                                            {currentScenario.keywords.filter(k => k.category === cat.key).map(k => k.text).join('；')}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
