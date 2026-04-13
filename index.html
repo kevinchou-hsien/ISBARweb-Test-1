@@ -30,13 +30,6 @@
     
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Framer Motion CDN (UMD) -->
-    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    
-    <!-- Lucide Icons CDN (UMD) -->
-    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -71,10 +64,18 @@
             background: #94a3b8;
         }
 
-        .markdown-body ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin-bottom: 1rem;
+        /* Simple Fade In Animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
         }
     </style>
 </head>
@@ -82,38 +83,34 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Access globals from CDN
         const { useState, useEffect, useMemo, useCallback } = React;
         
-        // Robust detection for Framer Motion
-        // We use a proxy to ensure motion.tag always returns a valid component or string
-        const motion = new Proxy({}, {
-            get: (target, tag) => {
-                const m = window.Motion || window.framerMotion;
-                const motionLib = m ? (m.motion || m) : null;
-                if (motionLib && motionLib[tag]) return motionLib[tag];
-                return tag; // Fallback to string tag name
-            }
-        });
-
-        const AnimatePresence = (window.Motion || window.framerMotion)?.AnimatePresence || (({ children }) => <>{children}</>);
-        
-        // Helper to get icons safely from LucideReact global
-        const Icon = ({ name, ...props }) => {
-            const lucide = window.LucideReact || window.lucide || {};
-            let IconComponent = lucide[name];
-            
-            if (!IconComponent) {
-                const foundKey = Object.keys(lucide).find(k => k.toLowerCase() === name.toLowerCase());
-                IconComponent = foundKey ? lucide[foundKey] : null;
-            }
-            
-            // If it's not a valid component, return a placeholder
-            if (!IconComponent || (typeof IconComponent !== 'function' && (typeof IconComponent !== 'object' || !IconComponent.$$typeof))) {
-                return <span className="inline-block w-4 h-4 bg-slate-200 rounded-sm" title={`Missing icon: ${name}`} />;
-            }
-            
-            return <IconComponent {...props} />;
+        // Simple Icon component using Emojis
+        const Icon = ({ name, className = "" }) => {
+            const icons = {
+                ClipboardList: "📋",
+                ShieldCheck: "🛡️",
+                Settings: "⚙️",
+                Eye: "👁️",
+                EyeOff: "🙈",
+                Info: "ℹ️",
+                Clock: "🕒",
+                Timer: "⏳",
+                CheckCircle2: "✅",
+                AlertCircle: "⚠️",
+                User: "👤",
+                FileText: "📄",
+                Search: "🔍",
+                ChevronRight: "➡️",
+                RefreshCcw: "🔄",
+                X: "❌",
+                Lightbulb: "💡",
+                GripVertical: "⋮",
+                AlertTriangle: "⚠️",
+                Activity: "📈",
+                Stethoscope: "🩺"
+            };
+            return <span className={`inline-flex items-center justify-center ${className}`}>{icons[name] || "❓"}</span>;
         };
 
         // --- Constants ---
@@ -129,18 +126,19 @@
                 ward: '5A 病房',
                 timeLimit: 0,
                 chiefComplaint: '術後呼吸困難',
-                fullStory: `王大明先生，65歲，昨天剛完成右膝人工關節置換術。目前在 5A 病房。\n今天早上巡房時，病人突然抱怨胸口悶痛且呼吸非常費力。\n生命徵象顯示：呼吸每分鐘 28 次，心跳 110 次，血氧飽和度 (SpO2) 下降至 88%。\n過去病史有高血壓與長期抽菸。聽診發現雙肺下葉有細濕囉音。\n身為實習護生，你需要立即向學姊或醫師交班。`,
+                fullStory: `王大明先生，65歲，昨天剛完成右膝人工關節置換術。目前在 5A 病房。\n今天早上巡房時，病人突然抱怨胸口悶痛且呼吸非常費力，額頭冒冷汗。\n生命徵象顯示：呼吸每分鐘 28 次，心跳 110 次，血壓 145/90 mmHg，血氧飽和度 (SpO2) 下降至 88%。\n過去病史有高血壓與長期抽菸（每天一包，持續30年）。聽診發現雙肺下葉有明顯細濕囉音。\n身為實習護生，你需要立即向學姊或醫師交班。`,
                 keywords: [
                     { id: 'k1', text: '我是 5A 病房護生小明', category: 'I', description: '自我介紹與單位' },
                     { id: 'k2', text: '502-1 床王大明先生', category: 'S', description: '病人姓名與床號' },
                     { id: 'k3', text: '目前感到呼吸困難且胸口悶痛', category: 'S', description: '目前發生的主要問題' },
                     { id: 'k4', text: '昨天剛完成右膝人工關節置換術', category: 'B', description: '相關手術史' },
-                    { id: 'k5', text: '過去有高血壓病史', category: 'B', description: '過去病史' },
-                    { id: 'k6', text: '呼吸每分鐘 28 次', category: 'A', description: '異常生命徵象' },
+                    { id: 'k5', text: '過去有高血壓病史與長期抽菸史', category: 'B', description: '過去病史' },
+                    { id: 'k6', text: '呼吸每分鐘 28 次，心跳 110 次', category: 'A', description: '異常生命徵象' },
                     { id: 'k7', text: '血氧飽和度 (SpO2) 下降至 88%', category: 'A', description: '異常檢查數值' },
-                    { id: 'k8', text: '聽診有囉音', category: 'A', description: '身體評估發現' },
+                    { id: 'k8', text: '聽診雙肺下葉有細濕囉音', category: 'A', description: '身體評估發現' },
                     { id: 'k9', text: '建議立即請住院醫師過來評估', category: 'R', description: '具體建議行動', priority: 1 },
-                    { id: 'k10', text: '先給予氧氣治療', category: 'R', description: '初步處理措施', priority: 2 },
+                    { id: 'k10', text: '先給予氧氣治療 (如鼻導管)', category: 'R', description: '初步處理措施', priority: 2 },
+                    { id: 'k11_new', text: '協助病人採高坐臥位以利呼吸', category: 'R', description: '護理處置', priority: 3 },
                 ]
             },
             {
@@ -154,15 +152,16 @@
                 ward: '5A 病房',
                 timeLimit: 0,
                 chiefComplaint: '腹部術後劇烈疼痛',
-                fullStory: `陳阿姨，58歲，今天早上剛完成腹腔鏡膽囊切除術。\n目前回到病房 4 小時，主訴傷口劇烈疼痛，疼痛評分 (NRS) 達 8 分。\n病人顯得焦躁不安，出冷汗，血壓稍高 145/92 mmHg。\n醫囑有開立止痛藥 (Keto) 必要時使用。`,
+                fullStory: `陳阿姨，58歲，今天早上剛完成腹腔鏡膽囊切除術。\n目前回到病房 4 小時，主訴傷口劇烈疼痛，疼痛評分 (NRS) 達 8 分，病人緊皺眉頭並按壓腹部。\n生命徵象：血壓 145/92 mmHg，心跳 98 次/分，出冷汗。傷口敷料乾燥無滲血。\n醫囑有開立止痛藥 (Keto 30mg) 必要時肌肉注射。`,
                 keywords: [
                     { id: 'k1-2-1', text: '我是 5A 病房護生小明', category: 'I', description: '自我介紹' },
-                    { id: 'k1-2-2', text: '505-2 床陳阿姨', category: 'S', description: '病人資訊' },
+                    { id: 'k1-2-2', text: '505-2 床陳阿姨', category: 'S', description: '病人姓名與床號' },
                     { id: 'k1-2-3', text: '術後傷口劇烈疼痛，NRS 8 分', category: 'S', description: '目前問題' },
                     { id: 'k1-2-4', text: '早上剛完成腹腔鏡膽囊切除術', category: 'B', description: '手術背景' },
-                    { id: 'k1-2-5', text: '血壓 145/92 mmHg，顯得焦躁', category: 'A', description: '評估發現' },
-                    { id: 'k1-2-6', text: '建議依醫囑給予止痛藥物', category: 'R', description: '建議處置', priority: 1 },
-                    { id: 'k1-2-7', text: '協助病人採舒適臥位', category: 'R', description: '護理措施', priority: 2 },
+                    { id: 'k1-2-5', text: '血壓 145/92 mmHg，顯得焦躁出冷汗', category: 'A', description: '評估發現' },
+                    { id: 'k1-2-5_new', text: '傷口敷料乾燥無滲血', category: 'A', description: '傷口評估' },
+                    { id: 'k1-2-6', text: '建議依醫囑給予止痛藥物 Keto', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'k1-2-7', text: '協助病人採舒適臥位並教導深呼吸', category: 'R', description: '護理措施', priority: 2 },
                 ]
             },
             {
@@ -176,18 +175,42 @@
                 ward: '5A 病房',
                 timeLimit: 180,
                 chiefComplaint: '心衰竭合併下肢水腫',
-                fullStory: `李美玲女士，42歲，因心衰竭急性惡化入院。\n目前主訴呼吸喘，無法平躺，下肢有明顯凹陷性水腫 (Pitting edema 2+)。\n生命徵象：血壓 150/90 mmHg，心跳 95 次，呼吸 24 次。\n目前留置有 CVP 管路，壓力測得 18 cmH2O。\n醫師開立了利尿劑 (Lasix) 醫囑，並要求記錄 I/O。`,
+                fullStory: `李美玲女士，42歲，因心衰竭急性惡化入院。\n目前主訴呼吸喘，無法平躺，說話斷續。下肢有明顯凹陷性水腫 (Pitting edema 2+)。\n生命徵象：血壓 150/90 mmHg，心跳 95 次，呼吸 24 次，SpO2 94% (Room air)。\n目前留置有 CVP 管路，壓力測得 18 cmH2O (偏高)。\n醫師開立了利尿劑 (Lasix 20mg) 醫囑，並要求嚴格記錄 I/O。`,
                 keywords: [
                     { id: 'k11', text: '我是 5A 病房護生小玲', category: 'I', description: '自我介紹' },
-                    { id: 'k12', text: '508-2 床李美玲女士', category: 'S', description: '病人資訊' },
-                    { id: 'k13', text: '心衰竭急性惡化，呼吸喘且水腫', category: 'S', description: '當前狀況' },
-                    { id: 'k14', text: 'CVP 壓力 18 cmH2O', category: 'A', description: '管路監測' },
+                    { id: 'k12', text: '508-2 床李美玲女士', category: 'S', description: '病人姓名與床號' },
+                    { id: 'k13', text: '心衰竭急性惡化，呼吸喘且無法平躺', category: 'S', description: '當前狀況' },
+                    { id: 'k14', text: 'CVP 壓力 18 cmH2O，顯示體液過負荷', category: 'A', description: '管路監測' },
                     { id: 'k15', text: '下肢 Pitting edema 2+', category: 'A', description: '身體評估' },
                     { id: 'k16', text: '三年前曾有感冒紀錄', category: 'NOISE', description: '無關資訊', isNoise: true },
                     { id: 'k17', text: '病人信仰佛教', category: 'NOISE', description: '無關資訊', isNoise: true },
-                    { id: 'k18', text: '給予利尿劑 Lasix', category: 'R', description: '治療計畫', priority: 2 },
-                    { id: 'k19', text: '嚴格記錄 I/O 與體重', category: 'R', description: '護理重點', priority: 1 },
-                    { id: 'k20', text: '採半坐臥位 (Semi-Fowler)', category: 'R', description: '護理處置', priority: 3 },
+                    { id: 'k18', text: '依醫囑給予利尿劑 Lasix', category: 'R', description: '治療計畫', priority: 2 },
+                    { id: 'k19', text: '嚴格記錄 I/O 與每日體重', category: 'R', description: '護理重點', priority: 1 },
+                    { id: 'k20', text: '協助採半坐臥位 (Semi-Fowler) 並限制水分', category: 'R', description: '護理處置', priority: 3 },
+                ]
+            },
+            {
+                id: '2-2',
+                title: '術後瞻妄與管路安全',
+                patientName: '張伯伯',
+                bedNumber: '512-1',
+                age: 78,
+                gender: '男',
+                difficulty: 'Level 2',
+                ward: '5A 病房',
+                timeLimit: 180,
+                chiefComplaint: '術後意識混亂',
+                fullStory: `張伯伯，78歲，大腸癌術後第三天。\n今天傍晚突然出現意識混亂，試圖拔除鼻胃管與點滴管路，且不認得家屬，出現幻覺。\n目前生命徵象穩定，但血氧稍低 92% (Room air)，呼吸 22 次/分。\n過去有輕微失智病史，且術後睡眠品質不佳。醫師懷疑為術後瞻妄 (Delirium)。`,
+                keywords: [
+                    { id: 'k2-2-1', text: '我是 5A 病房護生小明', category: 'I', description: '自我介紹' },
+                    { id: 'k2-2-2', text: '512-1 床張伯伯', category: 'S', description: '病人姓名與床號' },
+                    { id: 'k2-2-3', text: '術後第三天突然意識混亂，試圖拔管', category: 'S', description: '目前問題' },
+                    { id: 'k2-2-4', text: '大腸癌術後，有輕微失智病史', category: 'B', description: '背景資料' },
+                    { id: 'k2-2-5', text: '血氧 92%，不認得家屬且有幻覺', category: 'A', description: '評估發現' },
+                    { id: 'k2-2-6', text: '病人早餐吃稀飯', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k2-2-7', text: '建議加強床欄防護與約束評估', category: 'R', description: '安全措施', priority: 1 },
+                    { id: 'k2-2-8', text: '給予低流量氧氣使用並維持環境安靜', category: 'R', description: '生理支持', priority: 2 },
+                    { id: 'k2-2-9', text: '請家屬在旁陪伴安撫，提供定向感', category: 'R', description: '心理支持', priority: 3 },
                 ]
             },
             {
@@ -201,38 +224,343 @@
                 ward: 'SICU',
                 timeLimit: 120,
                 chiefComplaint: '敗血性休克併多重器官衰竭',
-                fullStory: `張老先生，72歲，因腹膜炎引發敗血性休克轉入 SICU。\n目前插管 (Endo) 使用呼吸器中，設定為 PC mode。\n今日早上血壓掉至 80/45 mmHg，MAP 56 mmHg。\n目前使用 Levophed 15 mcg/min 維持血壓。\nWBC 25,000/uL，Lactate 4.5 mmol/L。`,
+                fullStory: `張老先生，72歲，因腹膜炎引發敗血性休克轉入 SICU。\n目前插管 (Endo) 使用呼吸器中，設定為 PC mode，FiO2 40%。\n今日早上血壓掉至 80/45 mmHg，MAP 56 mmHg，尿量每小時僅 10cc。\n目前使用 Levophed 15 mcg/min 維持血壓。\nWBC 25,000/uL，Lactate 4.5 mmol/L，顯示嚴重感染與組織灌流不足。`,
                 keywords: [
                     { id: 'k21', text: '我是 SICU 護生阿強', category: 'I', description: '自我介紹' },
-                    { id: 'k22', text: 'SICU-05 床張老先生', category: 'S', description: '病人資訊' },
+                    { id: 'k22', text: 'SICU-05 床張老先生', category: 'S', description: '病人姓名與床號' },
                     { id: 'k23', text: '敗血性休克，血壓掉至 80/45 mmHg', category: 'S', description: '主訴' },
                     { id: 'k24', text: 'Endo, A-line, CVP 留置中', category: 'B', description: '管路背景' },
-                    { id: 'k25', text: 'MAP 56 mmHg, Lactate 4.5', category: 'A', description: '血流動力學' },
+                    { id: 'k25', text: 'MAP 56 mmHg, Lactate 4.5, 少尿', category: 'A', description: '血流動力學' },
                     { id: 'k26', text: '家屬詢問轉出時間', category: 'NOISE', description: '無關資訊', isNoise: true },
                     { id: 'k27', text: '十年前白內障手術', category: 'NOISE', description: '無關資訊', isNoise: true },
-                    { id: 'k28', text: '調高 Levophed 劑量', category: 'R', description: '急迫處置', priority: 1 },
-                    { id: 'k29', text: '追蹤血液培養與抗生素使用', category: 'R', description: '治療計畫', priority: 2 },
-                    { id: 'k30', text: '準備輸液復甦 (Fluid resuscitation)', category: 'R', description: '護理重點', priority: 3 },
+                    { id: 'k28', text: '依醫囑調高 Levophed 劑量', category: 'R', description: '急迫處置', priority: 1 },
+                    { id: 'k29', text: '追蹤血液培養與抗生素使用狀況', category: 'R', description: '治療計畫', priority: 2 },
+                    { id: 'k30', text: '準備輸液復甦並密切監測每小時尿量', category: 'R', description: '護理重點', priority: 3 },
+                ]
+            },
+            {
+                id: '3-2',
+                title: '急性心肌梗塞併心因性休克',
+                patientName: '林先生',
+                bedNumber: 'CCU-02',
+                age: 55,
+                gender: '男',
+                difficulty: 'Level 3',
+                ward: 'CCU',
+                timeLimit: 120,
+                chiefComplaint: 'AMI 併心因性休克',
+                fullStory: `林先生，55歲，因急性前壁心肌梗塞 (STEMI) 入住 CCU。\n剛完成緊急心導管手術 (PCI)，置放兩支支架，過程順利。\n術後血壓不穩 85/50 mmHg，心跳 115 次，出現頻發性 VPC (每分鐘 > 6 次)。\n目前使用 IABP (1:1) 輔助，並滴注 Dopamine 10 mcg/kg/min 以維持 MAP > 65 mmHg。`,
+                keywords: [
+                    { id: 'k3-2-1', text: '我是 CCU 護生小華', category: 'I', description: '自我介紹' },
+                    { id: 'k3-2-2', text: 'CCU-02 床林先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'k3-2-3', text: 'AMI 術後血壓不穩，頻發 VPC', category: 'S', description: '目前狀況' },
+                    { id: 'k3-2-4', text: '剛完成 PCI 支架置放', category: 'B', description: '手術史' },
+                    { id: 'k3-2-5', text: '使用 IABP 1:1，Dopamine 使用中', category: 'A', description: '治療監測' },
+                    { id: 'k3-2-5_new', text: '心跳 115 次，VPC 頻發', category: 'A', description: '心律評估' },
+                    { id: 'k3-2-6', text: '病人對海鮮過敏', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k3-2-7', text: '病人喜歡喝熱水', category: 'NOISE', description: '無關資訊', isNoise: true },
+                    { id: 'k3-2-8', text: '密切監測心律變化與 VPC 頻率', category: 'R', description: '監測重點', priority: 1 },
+                    { id: 'k3-2-9', text: '觀察穿刺部位有無出血或血腫', category: 'R', description: '術後觀察', priority: 2 },
+                    { id: 'k3-2-10', text: '維持 IABP 運作與足背動脈搏動', category: 'R', description: '管路護理', priority: 3 },
+                ]
+            },
+            {
+                id: 'IM-1',
+                title: '社區型肺炎',
+                patientName: '劉先生',
+                bedNumber: '508-2',
+                age: 72,
+                gender: '男',
+                difficulty: 'Level 1',
+                ward: '內科 5B 病房',
+                timeLimit: 0,
+                chiefComplaint: '發燒、咳嗽及呼吸不順',
+                fullStory: `劉先生，72歲，三天來出現發燒與黃痰咳嗽，今日呼吸較急入住內科病房。\n生命徵象：BP 135/80 mmHg、HR 98 次/分、RR 24 次/分、T 38.5°C、SpO₂ 92% (Room air)。\nX 光顯示右下肺浸潤，目前依醫囑給予抗生素治療與氧氣鼻導管 2 L/min。`,
+                keywords: [
+                    { id: 'im1-1', text: '我是內科 5B 病房護生小潔', category: 'I', description: '自我介紹' },
+                    { id: 'im1-name', text: '508-2 床劉先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'im1-2', text: '因肺炎出現呼吸急促', category: 'S', description: '目前狀況' },
+                    { id: 'im1-3', text: '有高血壓病史，近期有感冒症狀', category: 'B', description: '病史背景' },
+                    { id: 'im1-4', text: '發燒、呼吸速率偏快、血氧下降', category: 'A', description: '評估發現' },
+                    { id: 'im1-4_new', text: 'X 光顯示右下肺浸潤', category: 'A', description: '影像檢查' },
+                    { id: 'im1-5', text: '持續給氧並觀察呼吸狀況', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'im1-6_new', text: '教導病人有效咳嗽與深呼吸', category: 'R', description: '護理衛教', priority: 2 },
+                ]
+            },
+            {
+                id: 'IM-2',
+                title: '高血糖危象',
+                patientName: '黃女士',
+                bedNumber: '611-1',
+                age: 59,
+                gender: '女',
+                difficulty: 'Level 2',
+                ward: '6A 病房',
+                timeLimit: 180,
+                chiefComplaint: '口渴、噁心、倦怠',
+                fullStory: `黃女士，59歲，有第二型糖尿病史，近兩天血糖控制不佳。今日出現噁心、頻尿與口渴。\n生命徵象：BP 140/88 mmHg、HR 104 次/分、RR 22 次/分。\n血糖值 420 mg/dL，尿液酮體 (+)，疑似糖尿病酮酸中毒 (DKA)。`,
+                keywords: [
+                    { id: 'im2-1', text: '我是 6A 病房護生小萱', category: 'I', description: '自我介紹' },
+                    { id: 'im2-name', text: '611-1 床黃女士', category: 'S', description: '病人姓名與床號' },
+                    { id: 'im2-2', text: '病人血糖明顯過高且有酮尿', category: 'S', description: '目前狀況' },
+                    { id: 'im2-3', text: '有多年糖尿病史，近日未規律用藥', category: 'B', description: '病史背景' },
+                    { id: 'im2-4', text: '高血糖 420 mg/dL、心跳偏快', category: 'A', description: '評估發現' },
+                    { id: 'im2-4_new', text: '尿液酮體陽性', category: 'A', description: '檢驗發現' },
+                    { id: 'im2-5', text: '儘速通知醫師調整胰島素治療', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'im2-5_new', text: '補充靜脈輸液以防脫水', category: 'R', description: '護理處置', priority: 2 },
+                    { id: 'im2-6', text: '病人中午只吃了一顆饅頭', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'IM-3',
+                title: '重症肺炎併急性呼吸衰竭',
+                patientName: '周先生',
+                bedNumber: 'ICU-3',
+                age: 75,
+                gender: '男',
+                difficulty: 'Level 3',
+                ward: 'ICU',
+                timeLimit: 120,
+                chiefComplaint: '呼吸困難、意識改變',
+                fullStory: `周先生，75歲，因社區型肺炎入住 ICU 觀察，今日清晨突然出現呼吸急促加劇及意識變得嗜睡。\n生命徵象：BP 102/65 mmHg、HR 125 次/分、RR 34 次/分、T 38.9°C、SpO₂ 85% (NRM 10 L/min)。\n動脈血氣分析 (ABG) 顯示 PaO₂ 降低，醫師已評估可能需氣管插管 (Endo)，但尚未執行。`,
+                keywords: [
+                    { id: 'im3-1', text: '我是 ICU 護生小哲', category: 'I', description: '自我介紹' },
+                    { id: 'im3-name', text: 'ICU-3 床周先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'im3-2', text: '病人目前出現嚴重呼吸困難，疑似急性呼吸衰竭', category: 'S', description: '目前狀況' },
+                    { id: 'im3-3', text: '有重症肺炎住 ICU，合併慢性腎臟病病史', category: 'B', description: '病史背景' },
+                    { id: 'im3-4', text: '呼吸速率 34 次/分、血氧 85%、意識嗜睡', category: 'A', description: '評估發現' },
+                    { id: 'im3-4_new', text: 'ABG 顯示低血氧性呼吸衰竭', category: 'A', description: '檢驗評估' },
+                    { id: 'im3-5', text: '立即通知值班醫師與呼吸治療師', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'im3-6', text: '準備氣管插管器材與呼吸器', category: 'R', description: '建議處置', priority: 2 },
+                    { id: 'im3-7', text: '持續給予高流量氧氣並密切監測 SpO₂', category: 'R', description: '建議處置', priority: 3 },
+                    { id: 'im3-8', text: '病人昨天曾抱怨病房燈光太亮、影響睡眠', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'SU-1',
+                title: '術後疼痛控制不佳',
+                patientName: '吳先生',
+                bedNumber: '703-2',
+                age: 54,
+                gender: '男',
+                difficulty: 'Level 1',
+                ward: '外科 7A 病房',
+                timeLimit: 0,
+                chiefComplaint: '腹部疼痛加劇',
+                fullStory: `吳先生，54歲，於昨日接受腹腔鏡闌尾切除術，今日術後第 1 天。上午巡房時病人主訴傷口疼痛加劇，疼痛評分為 7 分（0–10 分）。\n生命徵象：BP 132/78 mmHg、HR 96 次/分、RR 20 次/分、T 37.4°C。\n目前傷口敷料乾淨無滲液，但病人因疼痛不敢深呼吸與下床活動，腸音稍弱。`,
+                keywords: [
+                    { id: 'su1-1', text: '我是外科 7A 病房護生小彥', category: 'I', description: '自我介紹' },
+                    { id: 'su1-name', text: '703-2 床吳先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'su1-2', text: '術後痛感明顯且不敢活動', category: 'S', description: '目前狀況' },
+                    { id: 'su1-3', text: '昨日接受腹腔鏡闌尾切除術', category: 'B', description: '病史背景' },
+                    { id: 'su1-4', text: '疼痛指數 7 分，生命徵象穩定，腸音弱', category: 'A', description: '評估發現' },
+                    { id: 'su1-5', text: '評估是否需要調整止痛藥物劑量', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'su1-6_new', text: '鼓勵病人深呼吸並嘗試床邊坐起', category: 'R', description: '護理處置', priority: 2 },
+                ]
+            },
+            {
+                id: 'SU-2',
+                title: '腸阻塞疑慮',
+                patientName: '許太太',
+                bedNumber: '821-1',
+                age: 63,
+                gender: '女',
+                difficulty: 'Level 2',
+                ward: '8B 外科病房',
+                timeLimit: 180,
+                chiefComplaint: '腹脹、嘔吐',
+                fullStory: `許太太，63歲，有多次腹部手術史，住院期間出現腹部膨脹、噁心及咖啡色嘔吐物約 200cc。\n生命徵象：BP 118/70 mmHg、HR 108 次/分、RR 22 次/分。\n聽診腸音減弱，觸診腹部緊繃，尚未排氣或排便。腹部 X 光已完成待回報。`,
+                keywords: [
+                    { id: 'su2-1', text: '我是 8B 外科病房護生小晴', category: 'I', description: '自我介紹' },
+                    { id: 'su2-name', text: '821-1 床許太太', category: 'S', description: '病人姓名與床號' },
+                    { id: 'su2-2', text: '病人出現腹脹與咖啡色嘔吐物，疑似腸阻塞', category: 'S', description: '目前狀況' },
+                    { id: 'su2-3', text: '有多次腹部手術史，易發生腸沾黏', category: 'B', description: '病史背景' },
+                    { id: 'su2-4', text: '腸音減弱、心跳偏快、腹部緊繃', category: 'A', description: '評估發現' },
+                    { id: 'su2-5', text: '儘速通知醫師評估是否進一步檢查或禁食處置', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'su2-5_new', text: '準備放置鼻胃管進行減壓', category: 'R', description: '護理處置', priority: 2 },
+                    { id: 'su2-6', text: '病人一直詢問何時可以下床走動', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'SU-3',
+                title: '腹腔內出血併低血壓',
+                patientName: '張先生',
+                bedNumber: 'ER-5',
+                age: 47,
+                gender: '男',
+                difficulty: 'Level 3',
+                ward: '急診',
+                timeLimit: 120,
+                chiefComplaint: '頭暈、腹痛',
+                fullStory: `張先生，47歲，因車禍送急診，初期意識清醒，約 30 分鐘後出現腹部劇痛、臉色蒼白與意識模糊。\n生命徵象：BP 82/50 mmHg、HR 132 次/分、RR 28 次/分。\nFAST 超音波檢查顯示腹腔內大量積液，疑似內出血併發出血性休克。`,
+                keywords: [
+                    { id: 'su3-1', text: '我是急診外科護生小誠', category: 'I', description: '自我介紹' },
+                    { id: 'su3-name', text: 'ER-5 床張先生', category: 'S', description: '病人姓名與床號' },
+                    { id: 'su3-2', text: '病人疑似腹腔內大量出血併發休克', category: 'S', description: '目前狀況' },
+                    { id: 'su3-3', text: '剛發生車禍外傷，初期意識尚可', category: 'B', description: '病史背景' },
+                    { id: 'su3-4', text: '低血壓、心跳過快、意識模糊', category: 'A', description: '評估發現' },
+                    { id: 'su3-4_new', text: 'FAST 顯示腹腔內大量積液', category: 'A', description: '影像評估' },
+                    { id: 'su3-5', text: '立即通知外科醫師進行緊急評估', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'su3-6', text: '準備大量輸液與緊急輸血流程', category: 'R', description: '建議處置', priority: 2 },
+                    { id: 'su3-7', text: '儘速安排手術室進行止血手術', category: 'R', description: '建議處置', priority: 3 },
+                    { id: 'su3-8', text: '病人手機一直震動，有家屬來電', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'OB-1',
+                title: '規律宮縮待產',
+                patientName: '李小姐',
+                bedNumber: '301-2',
+                age: 29,
+                gender: '女',
+                difficulty: 'Level 1',
+                ward: '產房',
+                timeLimit: 0,
+                chiefComplaint: '規律下腹悶痛',
+                fullStory: `李小姐，29歲，孕 39 週，今日出現每 5 分鐘一次規律宮縮，伴隨少量落紅。\n生命徵象穩定，胎心音監測 (NST) 顯示 140 次/分，有反應。子宮頸開 3 公分，薄化 60%。`,
+                keywords: [
+                    { id: 'ob1-1', text: '我是產房護生小柔', category: 'I', description: '自我介紹' },
+                    { id: 'ob1-name', text: '301-2 床李小姐', category: 'S', description: '病人姓名與床號' },
+                    { id: 'ob1-2', text: '病人出現規律宮縮待產中', category: 'S', description: '目前狀況' },
+                    { id: 'ob1-3', text: '懷孕 39 週，第一胎，無高危險妊娠史', category: 'B', description: '病史背景' },
+                    { id: 'ob1-4', text: '子宮頸開 3 公分，胎心音正常', category: 'A', description: '評估發現' },
+                    { id: 'ob1-5', text: '持續待產觀察並每小時監測胎心音', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'ob1-6_new', text: '教導拉梅茲呼吸法以緩解不適', category: 'R', description: '護理指導', priority: 2 },
+                ]
+            },
+            {
+                id: 'OB-2',
+                title: '妊娠高血壓',
+                patientName: '林太太',
+                bedNumber: '315-1',
+                age: 34,
+                gender: '女',
+                difficulty: 'Level 2',
+                ward: '產科病房',
+                timeLimit: 180,
+                chiefComplaint: '頭痛、視線模糊',
+                fullStory: `林太太，34歲，孕 35 週，今日測得血壓偏高，並主訴嚴重頭痛與視線模糊。\n生命徵象：BP 158/102 mmHg、HR 92 次/分。下肢水腫 (Pitting edema 1+)。\n尿蛋白測試顯示 (+)，疑似妊娠高血壓或子癲前症。`,
+                keywords: [
+                    { id: 'ob2-1', text: '我是產科病房護生小筑', category: 'I', description: '自我介紹' },
+                    { id: 'ob2-name', text: '315-1 床林太太', category: 'S', description: '病人姓名與床號' },
+                    { id: 'ob2-2', text: '病人出現高血壓、頭痛與視力模糊', category: 'S', description: '目前狀況' },
+                    { id: 'ob2-3', text: '懷孕 35 週，無慢性高血壓史', category: 'B', description: '病史背景' },
+                    { id: 'ob2-4', text: '血壓 158/102 mmHg、尿蛋白陽性', category: 'A', description: '評估發現' },
+                    { id: 'ob2-4_new', text: '下肢水腫 1+，視力模糊', category: 'A', description: '身體評估' },
+                    { id: 'ob2-5', text: '通知醫師進一步評估是否為子癲前症', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'ob2-5_new', text: '維持環境安靜並密切監測血壓', category: 'R', description: '護理處置', priority: 2 },
+                    { id: 'ob2-6', text: '病人正在和家屬討論坐月子中心', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'OB-3',
+                title: '子癲前症合併抽搐',
+                patientName: '陳太太',
+                bedNumber: 'OR-2',
+                age: 36,
+                gender: '女',
+                difficulty: 'Level 3',
+                ward: '產房',
+                timeLimit: 120,
+                chiefComplaint: '突然抽搐、意識喪失',
+                fullStory: `陳太太，36歲，孕 37 週，住院待產期間突發全身強直陣攣性抽搐約 1 分鐘，意識喪失。\n生命徵象：BP 170/110 mmHg、HR 120 次/分、SpO2 90%。\n目前抽搐已停止，已給予氧氣面罩 10 L/min，醫師正趕往現場。`,
+                keywords: [
+                    { id: 'ob3-1', text: '我是產房護生小恩', category: 'I', description: '自我介紹' },
+                    { id: 'ob3-name', text: 'OR-2 床陳太太', category: 'S', description: '病人姓名與床號' },
+                    { id: 'ob3-2', text: '病人發生抽搐意識喪失，疑似子癲症發作', category: 'S', description: '目前狀況' },
+                    { id: 'ob3-3', text: '孕期血壓逐漸上升，有子癲前症診斷', category: 'B', description: '病史背景' },
+                    { id: 'ob3-4', text: '抽搐後意識模糊、血壓 170/110 mmHg', category: 'A', description: '評估發現' },
+                    { id: 'ob3-5', text: '立即通知醫師並準備急救設備', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'ob3-6', text: '準備硫酸鎂 (Magnesium Sulfate) 滴注', category: 'R', description: '建議處置', priority: 2 },
+                    { id: 'ob3-7', text: '維持呼吸道通暢並防止受傷', category: 'R', description: '建議處置', priority: 3 },
+                    { id: 'ob3-8', text: '家屬焦急詢問寶寶性別', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'PE-1',
+                title: '腸胃炎輕度脫水',
+                patientName: '陳小妹',
+                bedNumber: '402-3',
+                age: 2,
+                gender: '女',
+                difficulty: 'Level 1',
+                ward: '兒科病房',
+                timeLimit: 0,
+                chiefComplaint: '腹瀉、嘔吐',
+                fullStory: `陳小妹，2歲，今日腹瀉 5 次（水便）、嘔吐 2 次，食慾不佳。\n生命徵象：HR 120 次/分、RR 28 次/分，口腔黏膜稍乾，皮膚彈性尚可，尿量稍減。\n目前診斷為急性腸胃炎併輕度脫水。`,
+                keywords: [
+                    { id: 'pe1-1', text: '我是兒科病房護生小穎', category: 'I', description: '自我介紹' },
+                    { id: 'pe1-name', text: '402-3 床陳小妹', category: 'S', description: '病人姓名與床號' },
+                    { id: 'pe1-2', text: '病童頻繁腹瀉嘔吐，食慾差', category: 'S', description: '目前狀況' },
+                    { id: 'pe1-3', text: '無慢性疾病史，近期有托兒所感染史', category: 'B', description: '病史背景' },
+                    { id: 'pe1-4', text: '輕度脫水徵象，口腔黏膜乾', category: 'A', description: '評估發現' },
+                    { id: 'pe1-5', text: '鼓勵少量多次口服補液 (ORS) 並觀察', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'pe1-6_new', text: '記錄每小時嘔吐與腹瀉次數', category: 'R', description: '護理處置', priority: 2 },
+                ]
+            },
+            {
+                id: 'PE-2',
+                title: '支氣管炎合併喘鳴',
+                patientName: '黃小弟',
+                bedNumber: '410-1',
+                age: 4,
+                gender: '男',
+                difficulty: 'Level 2',
+                ward: '兒科病房',
+                timeLimit: 180,
+                chiefComplaint: '咳嗽、呼吸喘',
+                fullStory: `黃小弟，4歲，感冒三天後咳嗽加劇，今日出現明顯呼吸喘與喘鳴音 (Wheezing)。\n生命徵象：HR 135 次/分、RR 32 次/分、SpO₂ 94% (Room air)。\n胸部聽診可聞及雙肺呼氣末喘鳴音，使用呼吸輔助肌。`,
+                keywords: [
+                    { id: 'pe2-1', text: '我是兒科護生小承', category: 'I', description: '自我介紹' },
+                    { id: 'pe2-name', text: '410-1 床黃小弟', category: 'S', description: '病人姓名與床號' },
+                    { id: 'pe2-2', text: '病童咳嗽加劇且出現喘鳴', category: 'S', description: '目前狀況' },
+                    { id: 'pe2-3', text: '過去曾有氣喘樣支氣管炎病史', category: 'B', description: '病史背景' },
+                    { id: 'pe2-4', text: '呼吸急促、雙肺聞及喘鳴音', category: 'A', description: '評估發現' },
+                    { id: 'pe2-5', text: '通知醫師評估是否使用支氣管擴張劑噴霧', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'pe2-5_new', text: '協助病童採坐姿以利呼吸', category: 'R', description: '護理處置', priority: 2 },
+                    { id: 'pe2-6', text: '家屬詢問是否能吃冰淇淋', category: 'NOISE', description: '無關資訊', isNoise: true },
+                ]
+            },
+            {
+                id: 'PE-3',
+                title: '氣喘急性嚴重發作',
+                patientName: '周小弟',
+                bedNumber: 'ER-P2',
+                age: 6,
+                gender: '男',
+                difficulty: 'Level 3',
+                ward: '急診兒科',
+                timeLimit: 120,
+                chiefComplaint: '嚴重呼吸困難',
+                fullStory: `周小弟，6歲，氣喘急性發作送急診，到達時無法完整說話，出現鼻翼煽動與胸骨上凹陷。\n生命徵象：HR 150 次/分、RR 40 次/分、SpO₂ 88% (Room air)。\n聽診雙肺呼吸音極弱 (Silent chest)，情況極為危急。`,
+                keywords: [
+                    { id: 'pe3-1', text: '我是急診兒科護生小翔', category: 'I', description: '自我介紹' },
+                    { id: 'pe3-name', text: 'ER-P2 床周小弟', category: 'S', description: '病人姓名與床號' },
+                    { id: 'pe3-2', text: '病童氣喘嚴重發作，疑似呼吸衰竭前兆', category: 'S', description: '目前狀況' },
+                    { id: 'pe3-3', text: '有多年氣喘病史，近期感冒誘發', category: 'B', description: '病史背景' },
+                    { id: 'pe3-4', text: '低血氧 88%、呼吸 40 次、無法言語', category: 'A', description: '評估發現' },
+                    { id: 'pe3-4_new', text: '聽診呈現 Silent chest', category: 'A', description: '身體評估' },
+                    { id: 'pe3-5', text: '立即給予高濃度氧氣並維持呼吸道', category: 'R', description: '建議處置', priority: 1 },
+                    { id: 'pe3-6', text: '準備緊急吸入藥物與類固醇注射', category: 'R', description: '建議處置', priority: 2 },
+                    { id: 'pe3-7', text: '通知小兒科醫師與急救團隊', category: 'R', description: '建議處置', priority: 3 },
+                    { id: 'pe3-8', text: '病童書包裡有剛買的卡片', category: 'NOISE', description: '無關資訊', isNoise: true },
                 ]
             }
         ];
 
         const CATEGORIES = [
-            { key: 'I', full: 'Introduction', label: '自我介紹', color: 'bg-slate-500', border: 'border-slate-200', text: 'text-slate-600', icon: <Icon name="User" className="w-4 h-4" /> },
-            { key: 'S', full: 'Situation', label: '目前狀況', color: 'bg-red-500', border: 'border-red-200', text: 'text-red-600', icon: <Icon name="AlertCircle" className="w-4 h-4" /> },
-            { key: 'B', full: 'Background', label: '病史背景', color: 'bg-amber-500', border: 'border-amber-200', text: 'text-amber-600', icon: <Icon name="Clock" className="w-4 h-4" /> },
-            { key: 'A', full: 'Assessment', label: '評估發現', color: 'bg-blue-500', border: 'border-blue-200', text: 'text-blue-600', icon: <Icon name="Activity" className="w-4 h-4" /> },
-            { key: 'R', full: 'Recommendation', label: '建議處置', color: 'bg-emerald-500', border: 'border-emerald-200', text: 'text-emerald-600', icon: <Icon name="CheckCircle2" className="w-4 h-4" /> },
+            { key: 'I', full: 'Introduction', label: '自我介紹', color: 'bg-slate-500', border: 'border-slate-200', text: 'text-slate-600', icon: "👤" },
+            { key: 'S', full: 'Situation', label: '目前狀況', color: 'bg-red-500', border: 'border-red-200', text: 'text-red-600', icon: "⚠️" },
+            { key: 'B', full: 'Background', label: '病史背景', color: 'bg-amber-500', border: 'border-amber-200', text: 'text-amber-600', icon: "🕒" },
+            { key: 'A', full: 'Assessment', label: '評估發現', color: 'bg-blue-500', border: 'border-blue-200', text: 'text-blue-600', icon: "📈" },
+            { key: 'R', full: 'Recommendation', label: '建議處置', color: 'bg-emerald-500', border: 'border-emerald-200', text: 'text-emerald-600', icon: "✅" },
         ];
 
         // --- Components ---
 
         function KeywordItem({ keyword, isPlaced, isSelected, isSubmitted, onClick }) {
             return (
-                <motion.div
-                    layout
-                    whileHover={!isPlaced && !isSubmitted ? { scale: 1.02 } : {}}
-                    whileTap={!isPlaced && !isSubmitted ? { scale: 0.98 } : {}}
+                <div
                     onClick={onClick}
                     className={`px-3 py-2 rounded-lg text-sm transition-all border text-left flex items-center justify-between gap-2 cursor-pointer ${
                         isPlaced 
@@ -243,7 +571,7 @@
                     }`}
                 >
                     <div className="flex items-center gap-2">
-                        {!isPlaced && !isSubmitted && <Icon name="GripVertical" className="w-3.5 h-3.5 text-slate-400" />}
+                        {!isPlaced && !isSubmitted && <span className="text-slate-400">⋮</span>}
                         <span>{keyword.text}</span>
                     </div>
                     {isSubmitted && !isPlaced && !keyword.isNoise && (
@@ -251,7 +579,7 @@
                             應屬 {keyword.category}
                         </span>
                     )}
-                </motion.div>
+                </div>
             );
         }
 
@@ -263,7 +591,7 @@
                     onClick={() => onCategoryClick(cat.key)}
                     className={`flex flex-col min-h-[120px] rounded-xl border-2 transition-all ${
                         isTarget 
-                            ? "border-dashed border-medical-primary bg-medical-primary/5 scale-[1.01]" 
+                            ? "border-dashed border-medical-primary bg-medical-primary/5" 
                             : `border-transparent bg-slate-50/50`
                     }`}
                 >
@@ -290,11 +618,9 @@
                             </div>
                         ) : (
                             placedKeywords.map((kw, idx) => (
-                                <motion.div
+                                <div
                                     key={kw.id}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className={`p-2 rounded-lg text-xs border bg-white shadow-sm flex items-center justify-between group ${
+                                    className={`p-2 rounded-lg text-xs border bg-white shadow-sm flex items-center justify-between group fade-in ${
                                         isSubmitted 
                                             ? kw.category === cat.key ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30"
                                             : "border-slate-200"
@@ -303,20 +629,23 @@
                                     <div className="flex items-center gap-2">
                                         {isSubmitted && (
                                             kw.category === cat.key 
-                                                ? <Icon name="CheckCircle2" className="w-3 h-3 text-green-500" />
-                                                : <Icon name="AlertCircle" className="w-3 h-3 text-red-500" />
+                                                ? <span className="text-green-500">✅</span>
+                                                : <div className="flex items-center gap-1">
+                                                    <span className="text-red-500">⚠️</span>
+                                                    <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100">應屬 {kw.category}</span>
+                                                  </div>
                                         )}
                                         <span className="text-slate-700">{kw.text}</span>
                                     </div>
                                     {!isSubmitted && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); onPlacedKeywordClick(cat.key, kw); }}
-                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-400 transition-all"
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-400 transition-all"
                                         >
-                                            <Icon name="X" className="w-3 h-3" />
+                                            ❌
                                         </button>
                                     )}
-                                </motion.div>
+                                </div>
                             ))
                         )}
                     </div>
@@ -343,6 +672,14 @@
             const [showDifficultyModal, setShowDifficultyModal] = useState(false);
             const [currentTime, setCurrentTime] = useState(new Date());
             const [showScript, setShowScript] = useState(false);
+
+            // Ticking clock for Taiwan Time
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setCurrentTime(new Date());
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
             const [timeLeft, setTimeLeft] = useState(null);
             const [npcFeedback, setNpcFeedback] = useState([]);
             const [showHints, setShowHints] = useState(true);
@@ -374,8 +711,9 @@
                 const keywords = currentScenario.keywords.map(k => {
                     let updatedText = k.text;
                     if (playerName) {
-                        updatedText = updatedText.replace(/護生(小明|小玲|阿強)/g, `護生${playerName}`);
-                        updatedText = updatedText.replace(/我是(.*)護生(小明|小玲|阿強)/g, `我是$1護生${playerName}`);
+                        // Replace any "護生XX" or "我是...護生XX" with the actual player name
+                        // This regex looks for "護生" followed by 1 to 3 Chinese characters
+                        updatedText = updatedText.replace(/護生[\u4e00-\u9fa5]{1,3}/g, `護生${playerName}`);
                     }
                     return { ...k, text: updatedText };
                 });
@@ -470,24 +808,39 @@
                 setShowResult(true);
             };
 
-            const resetGame = () => {
+            const handleDifficultySelect = (difficultyLevel) => {
+                const filtered = SCENARIOS.filter(s => s.difficulty === difficultyLevel);
+                if (filtered.length === 0) return;
+                
+                let nextScenario;
+                if (filtered.length > 1 && currentScenario) {
+                    const others = filtered.filter(s => s.id !== currentScenario.id);
+                    nextScenario = others[Math.floor(Math.random() * others.length)];
+                } else {
+                    nextScenario = filtered[Math.floor(Math.random() * filtered.length)];
+                }
+                
+                const index = SCENARIOS.findIndex(s => s.id === nextScenario.id);
+                setCurrentScenarioIndex(index);
+                
                 setPlacedKeywords({ I: [], S: [], B: [], A: [], R: [] });
                 setScore(0);
                 setShowResult(false);
                 setSelectedKeyword(null);
                 setIsSubmitted(false);
                 setNpcFeedback([]);
-                if (currentScenario.timeLimit) setTimeLeft(currentScenario.timeLimit);
+                
+                if (nextScenario.timeLimit) {
+                    setTimeLeft(nextScenario.timeLimit);
+                } else {
+                    setTimeLeft(null);
+                }
+                
+                setShowDifficultyModal(false);
             };
 
-            const handleDifficultySelect = (difficulty) => {
-                const filtered = SCENARIOS.filter(s => s.difficulty === difficulty);
-                const randomIndex = Math.floor(Math.random() * filtered.length);
-                const scenario = filtered[randomIndex];
-                const index = SCENARIOS.findIndex(s => s.id === scenario.id);
-                setCurrentScenarioIndex(index);
-                resetGame();
-                setShowDifficultyModal(false);
+            const resetGame = () => {
+                handleDifficultySelect(currentScenario.difficulty);
             };
 
             const formatTime = (seconds) => {
@@ -501,8 +854,8 @@
                     {/* Header */}
                     <header className="medical-gradient text-white px-6 py-4 shadow-lg flex items-center justify-between sticky top-0 z-[100]">
                         <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                                <Icon name="ClipboardList" className="w-6 h-6" />
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <Icon name="ClipboardList" className="w-8 h-8" />
                             </div>
                             <div>
                                 <h1 className="text-xl font-black tracking-tight">ISBAR 臨床交班模擬訓練</h1>
@@ -514,6 +867,13 @@
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setShowDifficultyModal(true)}
+                                className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors"
+                                title="切換難度"
+                            >
+                                <Icon name="Settings" className="w-5 h-5" />
+                            </button>
                             <button 
                                 onClick={() => setShowHints(!showHints)}
                                 className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors border ${
@@ -531,11 +891,15 @@
                             </button>
                             <div className="hidden md:flex items-center gap-6 text-sm border-l border-white/20 pl-6">
                                 {timeLeft !== null && (
-                                    <div className={`flex items-center gap-2 font-black ${timeLeft < 30 ? 'text-red-300 animate-pulse' : 'text-white'}`}>
-                                        <Icon name="Clock" className="w-4 h-4" />
+                                    <div className={`flex items-center gap-2 font-black ${timeLeft < 30 ? 'text-red-300' : 'text-white'}`} title="剩餘時間">
+                                        <Icon name="Timer" className="w-4 h-4" />
                                         <span>{formatTime(timeLeft)}</span>
                                     </div>
                                 )}
+                                <div className="flex items-center gap-2 font-black text-white/80" title="台灣時間">
+                                    <Icon name="Clock" className="w-4 h-4" />
+                                    <span className="font-mono">{currentTime.toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}</span>
+                                </div>
                                 <div className="flex flex-col items-end">
                                     <span className="text-[10px] opacity-60 uppercase font-bold">當前練習者</span>
                                     <span className="font-bold">{playerName || '未登錄'}</span>
@@ -545,21 +909,49 @@
                     </header>
 
                     <main className="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {isSubmitted && !showResult && (
+                            <div className="lg:col-span-12 fade-in">
+                                <div className="bg-medical-primary text-white p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                                    <div className="flex items-center gap-3">
+                                        <Icon name="CheckCircle2" className="w-6 h-6" />
+                                        <div>
+                                            <p className="font-black">檢視模式</p>
+                                            <p className="text-xs opacity-80">你正在查看本次交班的評核結果，綠色為正確，紅色為錯誤。</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowResult(true)}
+                                        className="px-6 py-2 bg-white text-medical-primary rounded-xl font-black text-sm shadow-sm hover:bg-slate-50 transition-all"
+                                    >
+                                        返回評分結果
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         {/* Left Column */}
                         <div className="lg:col-span-5 space-y-8">
                             {/* Patient Info Card */}
                             <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                                     <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <Icon name="User" className="w-5 h-5 text-medical-primary" />
+                                        <Icon name="User" className="w-6 h-6 text-medical-primary" />
                                         病人基本資料
                                     </h2>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                        currentScenario.difficulty === 'Level 1' ? "bg-green-100 text-green-700" :
-                                        currentScenario.difficulty === 'Level 2' ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"
-                                    }`}>
-                                        {currentScenario.difficulty}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setShowDifficultyModal(true)}
+                                            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors"
+                                            title="切換難度"
+                                        >
+                                            <Icon name="Settings" className="w-3.5 h-3.5" />
+                                        </button>
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                            currentScenario.difficulty === 'Level 1' ? "bg-green-100 text-green-700" :
+                                            currentScenario.difficulty === 'Level 2' ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"
+                                        }`}>
+                                            {currentScenario.difficulty}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="p-6 grid grid-cols-2 gap-6">
                                     <div className="space-y-1">
@@ -599,7 +991,7 @@
                                         <Icon name="Search" className="w-5 h-5 text-medical-primary" />
                                         提取關鍵資訊
                                     </h2>
-                                    <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">點擊或拖曳分類</span>
+                                    <span className="text-[10px] font-bold opacity-50 uppercase tracking-widest">點擊分類</span>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {shuffledKeywords.map(kw => (
@@ -644,12 +1036,8 @@
                             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col">
                                 <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                                     <div className="flex items-center gap-2 font-bold text-slate-800">
-                                        <Icon name="ShieldCheck" className="w-5 h-5 text-medical-primary" />
+                                        <Icon name="ShieldCheck" className="w-6 h-6 text-medical-primary" />
                                         <span>ISBAR 交班單填寫區</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        <Icon name="Clock" className="w-3 h-3" />
-                                        <span>{currentTime.toLocaleTimeString()}</span>
                                     </div>
                                 </div>
 
@@ -672,143 +1060,197 @@
                     </main>
 
                     {/* Modals */}
-                    <AnimatePresence>
-                        {showIntroModal && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[300] flex items-center justify-center p-4">
-                                <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-                                    <div className="bg-medical-primary p-6 text-white flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <Icon name="ClipboardList" className="w-6 h-6" />
-                                            <h2 className="text-xl font-bold">臨床交班 (ISBAR) 模擬訓練系統</h2>
-                                        </div>
-                                        <button onClick={() => setShowIntroModal(false)} className="p-2 hover:bg-white/20 rounded-full"><Icon name="X" className="w-6 h-6" /></button>
+                    {showIntroModal && (
+                        <div className="fixed inset-0 modal-backdrop z-[300] flex items-center justify-center p-4 fade-in">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                                <div className="bg-medical-primary p-6 text-white flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Icon name="ClipboardList" className="w-6 h-6" />
+                                        <h2 className="text-xl font-bold">臨床交班 (ISBAR) 模擬訓練系統</h2>
                                     </div>
-                                    <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
-                                        <section className="space-y-2">
-                                            <h3 className="font-bold text-slate-900">遊戲目標</h3>
-                                            <p className="text-sm text-slate-600">本系統旨在訓練護生正確使用 ISBAR 溝通框架，確保醫療資訊傳遞的完整性與精確性。</p>
-                                        </section>
-                                        <section className="space-y-2">
-                                            <h3 className="font-bold text-slate-900">計分標準</h3>
-                                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm space-y-2">
-                                                <div className="flex justify-between"><span>正確分類關鍵字</span><span className="font-bold text-green-600">+10 分</span></div>
-                                                <div className="flex justify-between"><span>包含非必要資訊 (雜訊)</span><span className="font-bold text-red-600">-10 分</span></div>
-                                                <div className="flex justify-between"><span>建議 (R) 順序正確獎勵</span><span className="font-bold text-blue-600">+10 分</span></div>
-                                            </div>
-                                        </section>
-                                    </div>
-                                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-                                        <button onClick={() => setShowIntroModal(false)} className="px-8 py-3 bg-medical-primary text-white rounded-xl font-bold">開始練習</button>
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-
-                        {showNameModal && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[400] flex items-center justify-center p-4">
-                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 text-center">
-                                    <div className="w-20 h-20 bg-medical-light rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                        <Icon name="Stethoscope" className="w-10 h-10 text-medical-primary" />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-slate-900 mb-2">歡迎進入模擬訓練</h2>
-                                    <p className="text-slate-500 mb-8 text-sm">請輸入您的姓名或代號以開始練習</p>
-                                    <input 
-                                        type="text" 
-                                        value={playerName} 
-                                        onChange={(e) => setPlayerName(e.target.value)}
-                                        placeholder="例如：王小明"
-                                        className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-6 focus:border-medical-primary focus:ring-4 focus:ring-medical-primary/10 outline-none transition-all text-center font-bold text-lg"
-                                    />
-                                    <button 
-                                        onClick={() => { if(playerName) { setShowNameModal(false); setShowDifficultyModal(true); } }}
-                                        disabled={!playerName}
-                                        className="w-full py-4 bg-medical-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-medical-primary/20 disabled:opacity-50"
-                                    >
-                                        進入系統
-                                    </button>
-                                </motion.div>
-                            </motion.div>
-                        )}
-
-                        {showDifficultyModal && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[350] flex items-center justify-center p-4">
-                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-10">
-                                    <h2 className="text-2xl font-black text-slate-900 mb-8 text-center">選擇訓練難度</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {[
-                                            { level: 'Level 1', label: '初級訓練', desc: '基礎 ISBAR 分類', icon: <Icon name="ShieldCheck" className="w-6 h-6" />, color: 'green' },
-                                            { level: 'Level 2', label: '中級挑戰', desc: '包含干擾資訊與排序', icon: <Icon name="Activity" className="w-6 h-6" />, color: 'orange' },
-                                            { level: 'Level 3', label: '高級實戰', desc: '重症病況與高壓計時', icon: <Icon name="AlertTriangle" className="w-6 h-6" />, color: 'red' },
-                                        ].map(diff => (
-                                            <button key={diff.level} onClick={() => handleDifficultySelect(diff.level)} className="group p-6 rounded-2xl border-2 border-slate-100 hover:border-medical-primary hover:bg-medical-light/30 transition-all text-left flex flex-col items-center">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${diff.level === 'Level 1' ? 'bg-green-100 text-green-600' : diff.level === 'Level 2' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
-                                                    {diff.icon}
+                                    <button onClick={() => setShowIntroModal(false)} className="p-2 hover:bg-white/20 rounded-full">❌</button>
+                                </div>
+                                <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+                                    <section className="space-y-4">
+                                        <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3">🎯 遊戲目標</h3>
+                                        <ul className="text-sm text-slate-600 space-y-2 list-disc pl-5">
+                                            <li><strong>資訊提取</strong>：從複雜的臨床情境中，精確辨識並提取關鍵的醫療資訊。</li>
+                                            <li><strong>ISBAR 框架應用</strong>：練習將資訊正確歸類至 Introduction (介紹)、Situation (現況)、Background (背景)、Assessment (評估)、Recommendation (建議) 五大範疇。</li>
+                                            <li><strong>臨床判斷力</strong>：學習區分「必要醫療資訊」與「無關雜訊」，提升溝通效率。</li>
+                                            <li><strong>優先順序決策</strong>：在建議 (R) 階段，練習依據病情的急迫性排列處置順序。</li>
+                                        </ul>
+                                    </section>
+                                    <section className="space-y-4">
+                                        <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3">📊 計分標準</h3>
+                                        <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-sm space-y-4">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <span className="font-bold text-slate-800">正確分類</span>
+                                                    <p className="text-[11px] text-slate-500">將關鍵字放置在正確的 ISBAR 類別中。</p>
                                                 </div>
-                                                <h3 className="font-black text-slate-900">{diff.label}</h3>
-                                                <p className="text-xs text-slate-500 mt-2">{diff.desc}</p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
+                                                <span className="font-black text-green-600 whitespace-nowrap">+10 分 / 項</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <span className="font-bold text-slate-800">雜訊扣分</span>
+                                                    <p className="text-[11px] text-slate-500">誤選非必要資訊（如：無關病史、生活瑣事等）。</p>
+                                                </div>
+                                                <span className="font-black text-red-600 whitespace-nowrap">-10 分 / 項</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <span className="font-bold text-slate-800">建議排序獎勵</span>
+                                                    <p className="text-[11px] text-slate-500">在 R 類別中，若能依急迫性正確排列所有建議。</p>
+                                                </div>
+                                                <span className="font-black text-blue-600 whitespace-nowrap">+10 分 (總結)</span>
+                                            </div>
+                                            <div className="pt-2 border-t border-slate-200">
+                                                <p className="text-[10px] text-slate-400 italic">※ 總分將依據該情境的「最大可能得分」進行百分比換算。</p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                                <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                    <button onClick={() => setShowIntroModal(false)} className="px-8 py-3 bg-medical-primary text-white rounded-xl font-bold">開始練習</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                        {showResult && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 overflow-y-auto">
-                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-10 text-center my-8">
-                                    {!showScript ? (
-                                        <>
-                                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                <Icon name="CheckCircle2" className="w-12 h-12 text-green-600" />
+                    {showNameModal && (
+                        <div className="fixed inset-0 modal-backdrop z-[400] flex items-center justify-center p-4 fade-in">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 text-center">
+                                <div className="w-20 h-20 bg-medical-light rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                    <Icon name="Stethoscope" className="w-14 h-14 text-medical-primary" />
+                                </div>
+                                <h2 className="text-2xl font-black text-slate-900 mb-2">歡迎進入模擬訓練</h2>
+                                <p className="text-slate-500 mb-8 text-sm">請輸入您的姓名或代號以開始練習</p>
+                                <input 
+                                    type="text" 
+                                    value={playerName} 
+                                    onChange={(e) => setPlayerName(e.target.value)}
+                                    placeholder="例如：王小明"
+                                    className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-6 focus:border-medical-primary focus:ring-4 focus:ring-medical-primary/10 outline-none transition-all text-center font-bold text-lg"
+                                />
+                                <button 
+                                    onClick={() => { if(playerName) { setShowNameModal(false); setShowDifficultyModal(true); } }}
+                                    disabled={!playerName}
+                                    className="w-full py-4 bg-medical-primary text-white rounded-2xl font-black text-lg shadow-xl shadow-medical-primary/20 disabled:opacity-50"
+                                >
+                                    進入系統
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {showDifficultyModal && (
+                        <div className="fixed inset-0 modal-backdrop z-[350] flex items-center justify-center p-4 fade-in">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-10 relative">
+                                <button 
+                                    onClick={() => setShowDifficultyModal(false)}
+                                    className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
+                                >
+                                    ❌
+                                </button>
+                                <h2 className="text-2xl font-black text-slate-900 mb-8 text-center">選擇訓練難度</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[
+                                        { level: 'Level 1', label: '初級訓練', desc: '基礎 ISBAR 分類', icon: "🛡️", color: 'green' },
+                                        { level: 'Level 2', label: '中級挑戰', desc: '包含干擾資訊與排序', icon: "📈", color: 'orange' },
+                                        { level: 'Level 3', label: '高級實戰', desc: '重症病況與高壓計時', icon: "⚠️", color: 'red' },
+                                    ].map(diff => (
+                                        <button key={diff.level} onClick={() => handleDifficultySelect(diff.level)} className="group p-6 rounded-2xl border-2 border-slate-100 hover:border-medical-primary hover:bg-medical-light/30 transition-all text-left flex flex-col items-center">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl ${diff.level === 'Level 1' ? 'bg-green-100' : diff.level === 'Level 2' ? 'bg-orange-100' : 'bg-red-100'}`}>
+                                                {diff.icon}
                                             </div>
-                                            <h2 className="text-3xl font-black text-slate-900 mb-2">交班評核結果</h2>
-                                            <div className="bg-slate-50 rounded-2xl p-6 mb-8 grid grid-cols-2 gap-4">
-                                                <div><p className="text-[10px] font-bold text-slate-400 uppercase">最終積分</p><p className="text-4xl font-black text-medical-primary">{score}</p></div>
-                                                <div><p className="text-[10px] font-bold text-slate-400 uppercase">評級</p><p className={`text-xl font-black ${score >= 90 ? 'text-green-600' : score >= 70 ? 'text-blue-600' : 'text-orange-500'}`}>{score >= 90 ? "極佳" : score >= 70 ? "良好" : "待加強"}</p></div>
-                                            </div>
-                                            <div className="bg-medical-primary/5 border-l-4 border-medical-primary p-6 rounded-r-2xl text-left mb-8 space-y-2">
-                                                {npcFeedback.length > 0 ? (
-                                                    npcFeedback.map((fb, i) => (
-                                                        <p key={i} className="text-sm font-medium text-slate-700 italic flex gap-2">
-                                                            <span className="text-medical-primary">•</span>
-                                                            {fb}
-                                                        </p>
-                                                    ))
-                                                ) : (
-                                                    <p className="text-sm font-medium text-slate-700 italic">表現不錯，繼續保持！</p>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <button onClick={resetGame} className="py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg">再試一次</button>
-                                                <button onClick={() => { setShowResult(false); setShowDifficultyModal(true); resetGame(); }} className="py-4 bg-white border-2 border-medical-primary text-medical-primary rounded-2xl font-black">切換難度</button>
-                                            </div>
-                                            <button onClick={() => setShowScript(true)} className="w-full mt-4 py-4 bg-slate-100 text-slate-700 rounded-2xl font-black">查看標準交班稿</button>
-                                        </>
-                                    ) : (
-                                        <div className="text-left">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <h2 className="text-2xl font-black">標準交班稿 (ISBAR)</h2>
-                                                <button onClick={() => setShowScript(false)} className="p-2 bg-slate-100 rounded-full"><Icon name="X" className="w-5 h-5" /></button>
-                                            </div>
-                                            <div className="space-y-6 max-h-[60vh] overflow-y-auto p-4 bg-slate-50 rounded-2xl">
-                                                {CATEGORIES.map(cat => (
-                                                    <div key={cat.key} className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${cat.color}`}>{cat.key}</span>
-                                                            <span className="font-bold text-sm text-slate-700">{cat.full}</span>
-                                                        </div>
-                                                        <div className="pl-8 text-sm text-slate-600 leading-relaxed">
-                                                            {currentScenario.keywords.filter(k => k.category === cat.key).map(k => k.text).join('；')}
-                                                        </div>
+                                            <h3 className="font-black text-slate-900">{diff.label}</h3>
+                                            <p className="text-xs text-slate-500 mt-2">{diff.desc}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showResult && (
+                        <div className="fixed inset-0 modal-backdrop z-[500] flex items-center justify-center p-4 overflow-y-auto fade-in">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-10 text-center my-8">
+                                {!showScript ? (
+                                    <>
+                                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <span className="text-4xl">✅</span>
+                                        </div>
+                                        <h2 className="text-3xl font-black text-slate-900 mb-2">交班評核結果</h2>
+                                        <div className="bg-slate-50 rounded-2xl p-6 mb-8 grid grid-cols-2 gap-4">
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">最終積分</p><p className="text-4xl font-black text-medical-primary">{score}</p></div>
+                                            <div><p className="text-[10px] font-bold text-slate-400 uppercase">評級</p><p className={`text-xl font-black ${score >= 90 ? 'text-green-600' : score >= 70 ? 'text-blue-600' : 'text-orange-500'}`}>{score >= 90 ? "極佳" : score >= 70 ? "良好" : "待加強"}</p></div>
+                                        </div>
+                                        <div className="bg-medical-primary/5 border-l-4 border-medical-primary p-6 rounded-r-2xl text-left mb-8 space-y-2">
+                                            {npcFeedback.length > 0 ? (
+                                                npcFeedback.map((fb, i) => (
+                                                    <p key={i} className="text-sm font-medium text-slate-700 italic flex gap-2">
+                                                        <span className="text-medical-primary">•</span>
+                                                        {fb}
+                                                    </p>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm font-medium text-slate-700 italic">表現不錯，繼續保持！</p>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <button onClick={resetGame} className="py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg">再試一次</button>
+                                            <button onClick={() => setShowResult(false)} className="py-4 bg-white border-2 border-medical-primary text-medical-primary rounded-2xl font-black">檢視作答</button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-4">
+                                            <button onClick={() => { setShowResult(false); setShowDifficultyModal(true); resetGame(); }} className="py-4 bg-slate-100 text-slate-600 rounded-2xl font-black">切換難度</button>
+                                            <button onClick={() => setShowScript(true)} className="py-4 bg-slate-800 text-white rounded-2xl font-black">標準交班稿</button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-left">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="text-2xl font-black">標準交班稿 (ISBAR)</h2>
+                                            <button onClick={() => setShowScript(false)} className="p-2 bg-slate-100 rounded-full">❌</button>
+                                        </div>
+                                        <div className="space-y-6 max-h-[50vh] overflow-y-auto p-4 bg-slate-50 rounded-2xl">
+                                            {CATEGORIES.filter(c => c.key !== 'NOISE').map(cat => (
+                                                <div key={cat.key} className="space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${cat.color}`}>{cat.key}</span>
+                                                        <span className="font-bold text-sm text-slate-700">{cat.full}</span>
                                                     </div>
+                                                    <div className="pl-8 text-sm text-slate-600 leading-relaxed">
+                                                        {currentScenario.keywords
+                                                            .filter(k => k.category === cat.key)
+                                                            .map(k => {
+                                                                let text = k.text;
+                                                                if (cat.key === 'I' && playerName) {
+                                                                    text = text.replace(/(護生|護理師).*/, `$1${playerName}`);
+                                                                }
+                                                                return text;
+                                                            })
+                                                            .join('；')}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                            <p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+                                                <span>💡</span>
+                                                評核建議回顧
+                                            </p>
+                                            <div className="space-y-1">
+                                                {npcFeedback.map((fb, i) => (
+                                                    <p key={i} className="text-[11px] text-amber-700 leading-tight">• {fb}</p>
                                                 ))}
                                             </div>
                                         </div>
-                                    )}
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                        <button onClick={() => setShowScript(false)} className="w-full mt-6 py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg">返回評分結果</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
