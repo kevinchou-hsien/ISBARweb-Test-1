@@ -123,6 +123,7 @@
                 age: 65,
                 gender: '男',
                 difficulty: 'Level 1',
+                dept: '外科',
                 ward: '5A 病房',
                 timeLimit: 0,
                 chiefComplaint: '術後呼吸困難',
@@ -149,6 +150,7 @@
                 age: 58,
                 gender: '女',
                 difficulty: 'Level 1',
+                dept: '外科',
                 ward: '5A 病房',
                 timeLimit: 0,
                 chiefComplaint: '腹部術後劇烈疼痛',
@@ -172,6 +174,7 @@
                 age: 42,
                 gender: '女',
                 difficulty: 'Level 2',
+                dept: '內科',
                 ward: '5A 病房',
                 timeLimit: 180,
                 chiefComplaint: '心衰竭合併下肢水腫',
@@ -197,6 +200,7 @@
                 age: 78,
                 gender: '男',
                 difficulty: 'Level 2',
+                dept: '外科',
                 ward: '5A 病房',
                 timeLimit: 180,
                 chiefComplaint: '術後意識混亂',
@@ -221,6 +225,7 @@
                 age: 72,
                 gender: '男',
                 difficulty: 'Level 3',
+                dept: '急重症',
                 ward: 'SICU',
                 timeLimit: 120,
                 chiefComplaint: '敗血性休克併多重器官衰竭',
@@ -246,6 +251,7 @@
                 age: 55,
                 gender: '男',
                 difficulty: 'Level 3',
+                dept: '急重症',
                 ward: 'CCU',
                 timeLimit: 120,
                 chiefComplaint: 'AMI 併心因性休克',
@@ -272,6 +278,7 @@
                 age: 72,
                 gender: '男',
                 difficulty: 'Level 1',
+                dept: '內科',
                 ward: '內科 5B 病房',
                 timeLimit: 0,
                 chiefComplaint: '發燒、咳嗽及呼吸不順',
@@ -295,6 +302,7 @@
                 age: 59,
                 gender: '女',
                 difficulty: 'Level 2',
+                dept: '內科',
                 ward: '6A 病房',
                 timeLimit: 180,
                 chiefComplaint: '口渴、噁心、倦怠',
@@ -319,6 +327,7 @@
                 age: 75,
                 gender: '男',
                 difficulty: 'Level 3',
+                dept: '內科',
                 ward: 'ICU',
                 timeLimit: 120,
                 chiefComplaint: '呼吸困難、意識改變',
@@ -344,6 +353,7 @@
                 age: 54,
                 gender: '男',
                 difficulty: 'Level 1',
+                dept: '外科',
                 ward: '外科 7A 病房',
                 timeLimit: 0,
                 chiefComplaint: '腹部疼痛加劇',
@@ -366,6 +376,7 @@
                 age: 63,
                 gender: '女',
                 difficulty: 'Level 2',
+                dept: '外科',
                 ward: '8B 外科病房',
                 timeLimit: 180,
                 chiefComplaint: '腹脹、嘔吐',
@@ -389,6 +400,7 @@
                 age: 47,
                 gender: '男',
                 difficulty: 'Level 3',
+                dept: '急重症',
                 ward: '急診',
                 timeLimit: 120,
                 chiefComplaint: '頭暈、腹痛',
@@ -414,6 +426,7 @@
                 age: 29,
                 gender: '女',
                 difficulty: 'Level 1',
+                dept: '產科',
                 ward: '產房',
                 timeLimit: 0,
                 chiefComplaint: '規律下腹悶痛',
@@ -436,6 +449,7 @@
                 age: 34,
                 gender: '女',
                 difficulty: 'Level 2',
+                dept: '產科',
                 ward: '產科病房',
                 timeLimit: 180,
                 chiefComplaint: '頭痛、視線模糊',
@@ -460,6 +474,7 @@
                 age: 36,
                 gender: '女',
                 difficulty: 'Level 3',
+                dept: '產科',
                 ward: '產房',
                 timeLimit: 120,
                 chiefComplaint: '突然抽搐、意識喪失',
@@ -484,6 +499,7 @@
                 age: 2,
                 gender: '女',
                 difficulty: 'Level 1',
+                dept: '兒科',
                 ward: '兒科病房',
                 timeLimit: 0,
                 chiefComplaint: '腹瀉、嘔吐',
@@ -506,6 +522,7 @@
                 age: 4,
                 gender: '男',
                 difficulty: 'Level 2',
+                dept: '兒科',
                 ward: '兒科病房',
                 timeLimit: 180,
                 chiefComplaint: '咳嗽、呼吸喘',
@@ -529,6 +546,7 @@
                 age: 6,
                 gender: '男',
                 difficulty: 'Level 3',
+                dept: '兒科',
                 ward: '急診兒科',
                 timeLimit: 120,
                 chiefComplaint: '嚴重呼吸困難',
@@ -556,6 +574,17 @@
             { key: 'R', full: 'Recommendation', label: '建議處置', color: 'bg-emerald-500', border: 'border-emerald-200', text: 'text-emerald-600', icon: "✅" },
         ];
 
+        const DEPARTMENTS = ['內科', '外科', '產科', '兒科', '急重症', '隨機'];
+        const DIFFICULTY_LEVELS = ['Level 1', 'Level 2', 'Level 3'];
+
+        // --- Helper functions ---
+        const isPatientInfo = (k) => k.description && (k.description.includes('姓名') || k.description.includes('床號') || k.description.includes('病人資訊'));
+        const isCorrectPlacement = (kw, targetCat) => {
+            if (kw.category === targetCat) return true;
+            if (isPatientInfo(kw) && (kw.category === 'I' || kw.category === 'S') && (targetCat === 'I' || targetCat === 'S')) return true;
+            return false;
+        };
+
         // --- Components ---
 
         function KeywordItem({ keyword, isPlaced, isSelected, isSubmitted, onClick }) {
@@ -576,7 +605,7 @@
                     </div>
                     {isSubmitted && !isPlaced && !keyword.isNoise && (
                         <span className="text-[10px] font-bold text-red-500 ml-2 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 whitespace-nowrap">
-                            應屬 {keyword.category}
+                            應屬 {isPatientInfo(keyword) ? 'I/S' : keyword.category}
                         </span>
                     )}
                 </div>
@@ -622,17 +651,17 @@
                                     key={kw.id}
                                     className={`p-2 rounded-lg text-xs border bg-white shadow-sm flex items-center justify-between group fade-in ${
                                         isSubmitted 
-                                            ? kw.category === cat.key ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30"
+                                            ? isCorrectPlacement(kw, cat.key) ? "border-green-200 bg-green-50/30" : "border-red-200 bg-red-50/30"
                                             : "border-slate-200"
                                     }`}
                                 >
                                     <div className="flex items-center gap-2">
                                         {isSubmitted && (
-                                            kw.category === cat.key 
+                                            isCorrectPlacement(kw, cat.key) 
                                                 ? <span className="text-green-500">✅</span>
                                                 : <div className="flex items-center gap-1">
                                                     <span className="text-red-500">⚠️</span>
-                                                    <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100">應屬 {kw.category}</span>
+                                                    <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-100">應屬 {isPatientInfo(kw) ? 'I/S' : kw.category}</span>
                                                   </div>
                                         )}
                                         <span className="text-slate-700">{kw.text}</span>
@@ -670,6 +699,8 @@
             const [playerName, setPlayerName] = useState('');
             const [showNameModal, setShowNameModal] = useState(true);
             const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+            const [filterDept, setFilterDept] = useState('內科');
+            const [filterLevel, setFilterLevel] = useState('Level 1');
             const [currentTime, setCurrentTime] = useState(new Date());
             const [showScript, setShowScript] = useState(false);
 
@@ -706,23 +737,27 @@
                 return () => clearInterval(timer);
             }, [timeLeft, isSubmitted, showNameModal]);
 
-            // Shuffle keywords
-            useEffect(() => {
-                const keywords = currentScenario.keywords.map(k => {
+            // Memoized keywords with player name replaced
+            const scenarioKeywords = useMemo(() => {
+                return currentScenario.keywords.map(k => {
                     let updatedText = k.text;
                     if (playerName) {
                         // Replace any "護生XX" or "我是...護生XX" with the actual player name
-                        // This regex looks for "護生" followed by 1 to 3 Chinese characters
                         updatedText = updatedText.replace(/護生[\u4e00-\u9fa5]{1,3}/g, `護生${playerName}`);
                     }
                     return { ...k, text: updatedText };
                 });
+            }, [currentScenario, playerName]);
+
+            // Shuffle keywords
+            useEffect(() => {
+                const keywords = [...scenarioKeywords];
                 for (let i = keywords.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [keywords[i], keywords[j]] = [keywords[j], keywords[i]];
                 }
                 setShuffledKeywords(keywords);
-            }, [currentScenarioIndex, playerName]);
+            }, [scenarioKeywords]);
 
             const handleKeywordClick = (keyword) => {
                 if (isSubmitted) return;
@@ -767,7 +802,7 @@
                     keywords.forEach(k => {
                         if (k.isNoise) {
                             totalScore -= 10;
-                        } else if (k.category === cat) {
+                        } else if (isCorrectPlacement(k, cat)) {
                             totalScore += 10;
                         }
                     });
@@ -808,21 +843,11 @@
                 setShowResult(true);
             };
 
-            const handleDifficultySelect = (difficultyLevel) => {
-                const filtered = SCENARIOS.filter(s => s.difficulty === difficultyLevel);
-                if (filtered.length === 0) return;
+            const handleScenarioSelect = (scenarioId) => {
+                const index = SCENARIOS.findIndex(s => s.id === scenarioId);
+                if (index === -1) return;
                 
-                let nextScenario;
-                if (filtered.length > 1 && currentScenario) {
-                    const others = filtered.filter(s => s.id !== currentScenario.id);
-                    nextScenario = others[Math.floor(Math.random() * others.length)];
-                } else {
-                    nextScenario = filtered[Math.floor(Math.random() * filtered.length)];
-                }
-                
-                const index = SCENARIOS.findIndex(s => s.id === nextScenario.id);
                 setCurrentScenarioIndex(index);
-                
                 setPlacedKeywords({ I: [], S: [], B: [], A: [], R: [] });
                 setScore(0);
                 setShowResult(false);
@@ -830,17 +855,37 @@
                 setIsSubmitted(false);
                 setNpcFeedback([]);
                 
-                if (nextScenario.timeLimit) {
-                    setTimeLeft(nextScenario.timeLimit);
+                const scenario = SCENARIOS[index];
+                if (scenario.timeLimit) {
+                    setTimeLeft(scenario.timeLimit);
                 } else {
                     setTimeLeft(null);
                 }
+            };
+
+            const handleScenarioConfirm = () => {
+                let filtered = [];
+                if (filterDept === '隨機') {
+                    filtered = SCENARIOS.filter(s => s.difficulty === filterLevel);
+                    if (filtered.length === 0) filtered = [...SCENARIOS];
+                } else {
+                    filtered = SCENARIOS.filter(s => 
+                        s.dept === filterDept && s.difficulty === filterLevel
+                    );
+                    
+                    if (filtered.length === 0) {
+                        const deptOnly = SCENARIOS.filter(s => s.dept === filterDept);
+                        filtered = deptOnly.length > 0 ? deptOnly : [...SCENARIOS];
+                    }
+                }
                 
+                const random = filtered[Math.floor(Math.random() * filtered.length)];
+                handleScenarioSelect(random.id);
                 setShowDifficultyModal(false);
             };
 
             const resetGame = () => {
-                handleDifficultySelect(currentScenario.difficulty);
+                handleScenarioSelect(currentScenario.id);
             };
 
             const formatTime = (seconds) => {
@@ -858,11 +903,8 @@
                                 <Icon name="ClipboardList" className="w-8 h-8" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-black tracking-tight">ISBAR 臨床交班模擬訓練</h1>
-                                <div className="flex items-center gap-2 text-[10px] font-bold opacity-80 uppercase tracking-widest">
-                                    <Icon name="ShieldCheck" className="w-3 h-3" />
-                                    <span>病人安全與溝通品質提升計畫</span>
-                                </div>
+                                <h1 className="text-xl font-black tracking-tight">ISBAR 臨床交班模擬訓練系統</h1>
+                                <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">— 用遊戲化方式，學會專業又清楚的醫療溝通 —</p>
                             </div>
                         </div>
 
@@ -1066,46 +1108,128 @@
                                 <div className="bg-medical-primary p-6 text-white flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <Icon name="ClipboardList" className="w-6 h-6" />
-                                        <h2 className="text-xl font-bold">臨床交班 (ISBAR) 模擬訓練系統</h2>
+                                        <h2 className="text-xl font-bold">ISBAR 臨床交班模擬訓練系統</h2>
                                     </div>
                                     <button onClick={() => setShowIntroModal(false)} className="p-2 hover:bg-white/20 rounded-full">❌</button>
                                 </div>
                                 <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
-                                    <section className="space-y-4">
-                                        <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3">🎯 遊戲目標</h3>
-                                        <ul className="text-sm text-slate-600 space-y-2 list-disc pl-5">
-                                            <li><strong>資訊提取</strong>：從複雜的臨床情境中，精確辨識並提取關鍵的醫療資訊。</li>
-                                            <li><strong>ISBAR 框架應用</strong>：練習將資訊正確歸類至 Introduction (介紹)、Situation (現況)、Background (背景)、Assessment (評估)、Recommendation (建議) 五大範疇。</li>
-                                            <li><strong>臨床判斷力</strong>：學習區分「必要醫療資訊」與「無關雜訊」，提升溝通效率。</li>
-                                            <li><strong>優先順序決策</strong>：在建議 (R) 階段，練習依據病情的急迫性排列處置順序。</li>
-                                        </ul>
-                                    </section>
-                                    <section className="space-y-4">
-                                        <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3">📊 計分標準</h3>
-                                        <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-sm space-y-4">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <span className="font-bold text-slate-800">正確分類</span>
-                                                    <p className="text-[11px] text-slate-500">將關鍵字放置在正確的 ISBAR 類別中。</p>
-                                                </div>
-                                                <span className="font-black text-green-600 whitespace-nowrap">+10 分 / 項</span>
+                                    <section className="space-y-6">
+                                        <div>
+                                            <h2 className="text-2xl font-black text-medical-primary">ISBAR 臨床交班模擬訓練系統</h2>
+                                            <p className="text-slate-500 font-bold">— 用遊戲化方式，學會專業又清楚的醫療溝通 —</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">系統是做什麼的？</h3>
+                                            <p className="text-sm text-slate-600 leading-relaxed">
+                                                本系統是一套以 <strong>ISBAR 國際醫療溝通架構</strong> 為核心的互動式學習平台，透過模擬真實臨床情境，讓使用者練習如何將零散、複雜的病人資訊，整理成結構清楚、重點明確的交班內容。
+                                                不論你是醫護學生、實習人員，或想加強臨床溝通能力的學習者，都能在安全、無壓力的環境中反覆練習，建立正確的臨床思維。
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">什麼是 ISBAR？</h3>
+                                            <p className="text-sm text-slate-600 mb-2">ISBAR 是醫療現場廣泛使用的標準化溝通方式，能有效降低交班錯誤。</p>
+                                            <div className="overflow-hidden rounded-xl border border-slate-200">
+                                                <table className="w-full text-left text-xs">
+                                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                                        <tr>
+                                                            <th className="px-4 py-2 font-black text-slate-700">縮寫</th>
+                                                            <th className="px-4 py-2 font-black text-slate-700">意義</th>
+                                                            <th className="px-4 py-2 font-black text-slate-700">白話說明</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        <tr><td className="px-4 py-2 font-black text-slate-400">I</td><td className="px-4 py-2 font-bold">Introduction</td><td className="px-4 py-2">我是誰？單位？病人是誰？</td></tr>
+                                                        <tr><td className="px-4 py-2 font-black text-red-400">S</td><td className="px-4 py-2 font-bold">Situation</td><td className="px-4 py-2">目前最重要、最緊急的問題？</td></tr>
+                                                        <tr><td className="px-4 py-2 font-black text-amber-400">B</td><td className="px-4 py-2 font-bold">Background</td><td className="px-4 py-2">相關病史、手術史、過去狀況</td></tr>
+                                                        <tr><td className="px-4 py-2 font-black text-blue-400">A</td><td className="px-4 py-2 font-bold">Assessment</td><td className="px-4 py-2">生命徵象、檢查結果、異常發現</td></tr>
+                                                        <tr><td className="px-4 py-2 font-black text-emerald-400">R</td><td className="px-4 py-2 font-bold">Recommendation</td><td className="px-4 py-2">接下來該做什麼？需要協助？</td></tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <span className="font-bold text-slate-800">雜訊扣分</span>
-                                                    <p className="text-[11px] text-slate-500">誤選非必要資訊（如：無關病史、生活瑣事等）。</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">🕹️ 系統怎麼使用？</h3>
+                                            <div className="space-y-4 text-sm text-slate-600">
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">1</span>
+                                                    <div><strong>登入系統</strong>：輸入您的姓名或暱稱，系統會在對話中自動帶入。</div>
                                                 </div>
-                                                <span className="font-black text-red-600 whitespace-nowrap">-10 分 / 項</span>
-                                            </div>
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <span className="font-bold text-slate-800">建議排序獎勵</span>
-                                                    <p className="text-[11px] text-slate-500">在 R 類別中，若能依急迫性正確排列所有建議。</p>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">2</span>
+                                                    <div><strong>選擇練習情境</strong>：可設定科別（內、外、產、兒、急重症、隨機）與難度（Level 1-3）。</div>
                                                 </div>
-                                                <span className="font-black text-blue-600 whitespace-nowrap">+10 分 (總結)</span>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">3</span>
+                                                    <div><strong>閱讀病人情境</strong>：查看病人基本資料、主訴與完整臨床故事。</div>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">4</span>
+                                                    <div><strong>找出關鍵資訊</strong>：點選重要的「資訊字卡」，注意 Level 2/3 有干擾資訊。</div>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">5</span>
+                                                    <div><strong>分類到 ISBAR</strong>：將選到的字卡放入正確的 I / S / B / A / R 區塊。</div>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">6</span>
+                                                    <div><strong>送出交班</strong>：點擊「送出交班評單」進行即時評核。</div>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <span className="w-6 h-6 rounded-full bg-medical-light text-medical-primary flex items-center justify-center font-bold text-xs flex-shrink-0">7</span>
+                                                    <div><strong>回饋與學習</strong>：查看建議並參考「標準交班範例」。</div>
+                                                </div>
                                             </div>
-                                            <div className="pt-2 border-t border-slate-200">
-                                                <p className="text-[10px] text-slate-400 italic">※ 總分將依據該情境的「最大可能得分」進行百分比換算。</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">⭐ 系統特色一次看懂</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {[
+                                                    { t: "多科別真實情境", d: "模擬各單位常見狀況，貼近工作現場。" },
+                                                    { t: "三級難度設計", d: "循序漸進培養判斷與溝通能力。" },
+                                                    { t: "干擾資訊訓練", d: "學會篩選關鍵資訊，避免交班贅述。" },
+                                                    { t: "計時壓力模擬", d: "中高級關卡計時，鍛煉冷靜思考。" },
+                                                    { t: "NPC 專業回饋", d: "依表現給予具體建議與鼓勵。" },
+                                                    { t: "標準化交班稿", d: "自動生成結構清楚的專業示範。" }
+                                                ].map((feat, i) => (
+                                                    <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                        <p className="text-xs font-black text-medical-primary mb-1">✅ {feat.t}</p>
+                                                        <p className="text-[10px] text-slate-500">{feat.d}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">🎯 這個系統適合誰？</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["醫護學生、實習生", "臨床新手", "教師與培訓者", "想學習 ISBAR 邏輯者"].map(tag => (
+                                                    <span key={tag} className="px-3 py-1 bg-medical-light text-medical-dark rounded-full text-xs font-bold border border-medical-light">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-slate-900 border-l-4 border-medical-primary pl-3 text-lg">計分標準說明</h3>
+                                            <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4 text-xs">
+                                                <div className="flex items-start justify-between">
+                                                    <div><strong>1. 正確分類 (+10 分 / 項)</strong><p className="text-slate-500">正確將關鍵字放置在相應類別（如生命徵象放 A）。</p></div>
+                                                    <span className="text-green-600 font-black">+10</span>
+                                                </div>
+                                                <div className="flex items-start justify-between">
+                                                    <div><strong>2. 雜訊扣分 (-10 分 / 項)</strong><p className="text-slate-500">誤選干擾資訊（如無關生活瑣事）。</p></div>
+                                                    <span className="text-red-600 font-black">-10</span>
+                                                </div>
+                                                <div className="flex items-start justify-between">
+                                                    <div><strong>3. 優先順序獎勵 (+10 分)</strong><p className="text-slate-500">在 R 類別中，依急迫性正確排列處置。完全正確則獲得獎勵。</p></div>
+                                                    <span className="text-blue-600 font-black">+10</span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 italic pt-2 border-t border-slate-200">※ 最終得分 = (原始實得分 / 最高可能得分) × 100</p>
                                             </div>
                                         </div>
                                     </section>
@@ -1145,28 +1269,83 @@
 
                     {showDifficultyModal && (
                         <div className="fixed inset-0 modal-backdrop z-[350] flex items-center justify-center p-4 fade-in">
-                            <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-10 relative">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 relative flex flex-col">
                                 <button 
                                     onClick={() => setShowDifficultyModal(false)}
-                                    className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
+                                    className="absolute top-6 right-6 p-2 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 z-10"
                                 >
                                     ❌
                                 </button>
-                                <h2 className="text-2xl font-black text-slate-900 mb-8 text-center">選擇訓練難度</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {[
-                                        { level: 'Level 1', label: '初級訓練', desc: '基礎 ISBAR 分類', icon: "🛡️", color: 'green' },
-                                        { level: 'Level 2', label: '中級挑戰', desc: '包含干擾資訊與排序', icon: "📈", color: 'orange' },
-                                        { level: 'Level 3', label: '高級實戰', desc: '重症病況與高壓計時', icon: "⚠️", color: 'red' },
-                                    ].map(diff => (
-                                        <button key={diff.level} onClick={() => handleDifficultySelect(diff.level)} className="group p-6 rounded-2xl border-2 border-slate-100 hover:border-medical-primary hover:bg-medical-light/30 transition-all text-left flex flex-col items-center">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl ${diff.level === 'Level 1' ? 'bg-green-100' : diff.level === 'Level 2' ? 'bg-orange-100' : 'bg-red-100'}`}>
-                                                {diff.icon}
-                                            </div>
-                                            <h3 className="font-black text-slate-900">{diff.label}</h3>
-                                            <p className="text-xs text-slate-500 mt-2">{diff.desc}</p>
-                                        </button>
-                                    ))}
+                                
+                                <div className="text-center mb-8">
+                                    <h2 className="text-2xl font-black text-slate-900 mb-1">開始新練習</h2>
+                                    <p className="text-slate-500 text-sm">請選擇欲練習的科別與難度</p>
+                                </div>
+
+                                <div className="space-y-8">
+                                    {/* Dept Selection */}
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">目標科別</p>
+                                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                                            {DEPARTMENTS.map(dept => (
+                                                <button 
+                                                    key={dept} 
+                                                    onClick={() => setFilterDept(dept)}
+                                                    className={`py-3 rounded-2xl text-sm font-bold transition-all border ${
+                                                        filterDept === dept 
+                                                            ? "bg-medical-primary text-white border-medical-primary shadow-lg scale-105" 
+                                                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                                    }`}
+                                                >
+                                                    {dept}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Level Selection */}
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">挑戰難度</p>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            {DIFFICULTY_LEVELS.map(level => (
+                                                <button 
+                                                    key={level} 
+                                                    onClick={() => setFilterLevel(level)}
+                                                    className={`py-5 rounded-2xl text-xs font-black transition-all border flex flex-col items-center gap-1 ${
+                                                        filterLevel === level 
+                                                            ? (level === 'Level 1' ? "bg-green-500 text-white border-green-500 shadow-lg scale-105" :
+                                                               level === 'Level 2' ? "bg-orange-500 text-white border-orange-500 shadow-lg scale-105" :
+                                                               "bg-red-500 text-white border-red-500 shadow-lg scale-105")
+                                                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                                    }`}
+                                                >
+                                                    <span className="text-xl mb-1">{level === 'Level 1' ? '🥉' : level === 'Level 2' ? '🥈' : '🥇'}</span>
+                                                    <span>{level}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Confirm Button */}
+                                <button 
+                                    onClick={handleScenarioConfirm}
+                                    className="w-full mt-10 py-5 bg-medical-primary text-white rounded-2xl font-black shadow-xl hover:bg-medical-dark transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3"
+                                >
+                                    <span>開啟情境練習</span>
+                                </button>
+                                
+                                <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Icon name="Lightbulb" className="w-4 h-4 text-amber-500" />
+                                        <span className="text-[11px] font-bold text-slate-600">隱藏 ISBAR 分類提示</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowHints(!showHints)}
+                                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${showHints ? 'bg-slate-200' : 'bg-medical-primary'}`}
+                                    >
+                                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showHints ? 'translate-x-1' : 'translate-x-6'}`} />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1207,45 +1386,62 @@
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="text-left">
+                                    <div className="text-left pt-2 pb-6">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h2 className="text-2xl font-black">標準交班稿 (ISBAR)</h2>
-                                            <button onClick={() => setShowScript(false)} className="p-2 bg-slate-100 rounded-full">❌</button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center text-xl">📄</div>
+                                                <div>
+                                                    <h2 className="text-xl font-black">標準交班稿</h2>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Standard ISBAR Script</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setShowScript(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">❌</button>
                                         </div>
-                                        <div className="space-y-6 max-h-[50vh] overflow-y-auto p-4 bg-slate-50 rounded-2xl">
-                                            {CATEGORIES.filter(c => c.key !== 'NOISE').map(cat => (
-                                                <div key={cat.key} className="space-y-2">
+
+                                        <div className="bg-slate-900 rounded-2xl p-6 mb-6 text-slate-300 font-medium leading-relaxed text-sm shadow-inner relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                                                <Icon name="ClipboardList" className="w-24 h-24" />
+                                            </div>
+                                            <p className="relative z-10 italic">
+                                                「{CATEGORIES.map(cat => {
+                                                    const kwTexts = scenarioKeywords
+                                                        .filter(k => k.category === cat.key)
+                                                        .sort((a, b) => (a.priority || 99) - (b.priority || 99))
+                                                        .map(k => k.text);
+                                                    return kwTexts.join('，');
+                                                }).join('。')}。」
+                                            </p>
+                                        </div>
+
+                                        <div className="mb-6 p-4 bg-medical-light/30 rounded-2xl border border-medical-light">
+                                            <p className="text-xs font-bold text-medical-dark mb-2 flex items-center gap-2">
+                                                <Icon name="Lightbulb" className="w-4 h-4 text-medical-primary" />
+                                                <span>小建議</span>
+                                            </p>
+                                            <p className="text-[11px] text-slate-600 leading-relaxed">
+                                                您可以照著上方的黑色區塊內容大聲朗讀練習，這是一個符合臨床標準的高品質交班文本。
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">結構化詳細內容 (Structured View)</p>
+                                            {CATEGORIES.map(cat => (
+                                                <div key={cat.key} className="space-y-1.5 p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`px-2 py-1 rounded text-[10px] font-black text-white ${cat.color}`}>{cat.key}</span>
-                                                        <span className="font-bold text-sm text-slate-700">{cat.full}</span>
+                                                        <span className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-black text-white ${cat.color}`}>{cat.key}</span>
+                                                        <span className="font-bold text-xs text-slate-800">{cat.label}</span>
                                                     </div>
-                                                    <div className="pl-8 text-sm text-slate-600 leading-relaxed">
-                                                        {currentScenario.keywords
+                                                    <div className="pl-8 text-xs text-slate-600 leading-relaxed font-bold">
+                                                        {scenarioKeywords
                                                             .filter(k => k.category === cat.key)
-                                                            .map(k => {
-                                                                let text = k.text;
-                                                                if (cat.key === 'I' && playerName) {
-                                                                    text = text.replace(/(護生|護理師).*/, `$1${playerName}`);
-                                                                }
-                                                                return text;
-                                                            })
+                                                            .sort((a, b) => (a.priority || 99) - (b.priority || 99))
+                                                            .map(k => k.text)
                                                             .join('；')}
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                                            <p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
-                                                <span>💡</span>
-                                                評核建議回顧
-                                            </p>
-                                            <div className="space-y-1">
-                                                {npcFeedback.map((fb, i) => (
-                                                    <p key={i} className="text-[11px] text-amber-700 leading-tight">• {fb}</p>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <button onClick={() => setShowScript(false)} className="w-full mt-6 py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg">返回評分結果</button>
+                                        <button onClick={() => setShowScript(false)} className="w-full mt-6 py-4 bg-medical-primary text-white rounded-2xl font-black shadow-lg hover:bg-medical-dark transition-all">返回評分結果</button>
                                     </div>
                                 )}
                             </div>
